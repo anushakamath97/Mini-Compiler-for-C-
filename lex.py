@@ -12,39 +12,97 @@ predef_func = dict.fromkeys(
 	['cin', 'cout','cerr','exit','gets','puts','malloc','calloc','realloc','atoi'] , 'PREDEFINED_FUNCTION'
 )
 
+extra_words = ['include','main','std']
+
 # List of token names.   This is always required
 tokens = [
-   'NUMBER',
-   'PLUS',
-   'MINUS',
-   'TIMES',
-   'DIVIDE',
-   'LPAREN',
-   'RPAREN',
-   'OPERATOR',
+   'INTNUM','FLOATNUM','PLUSPLUS','MINUSMINUS',
+    'LEFTSQRBRACKET' , 'RIGHTSQRBRACKET',
+    'MULT_EQ','DIVIDE_EQ','MOD_EQ','PLUS_EQ',
+   'TIMES', 'MINUS_EQ', 'GTEQ', 'LTEQ', 'AND_EQ',
+   'DIVIDE', 'OR_EQ','XOR_EQ', 'LSHIFT_EQ','RSHIFT_EQ',
+   'LPAREN','BIT_OR','BIT_XOR','BIT_AND', 'CHAR_CONST',
+   'RPAREN', 'OR','AND','EQUAL','NEQUAL',
+   'GT',
+   'LT',
    'ID',
    'STRING',
    'KEYWORD',
-   'OSCOPE',
-   'CSCOPE',
    'PREDEFINED_FUNCTION', 
    'ASSIGNMENT',
-   'TERMINAL'
+   'TERMINAL',
+   'LSHIFT',
+   'RSHIFT',
+   'MOD',
+   'U_PLUS',
+   'U_MINUS',
+   'BIT_NOT',
+   'NOT',
+   'DEREF',
+   'COLON',
+   'LEFTCURLYBRACKET',
+   'RIGHTCURLYBRACKET',
+   'DEREF_ONE',
+   'DEREF_TWO',
+   'QUES_MARK',
+   'COMMA',
+   'HASH'
 ] 
 
+tokens += [kwd.upper() for kwd in reserved]
+tokens += [kwd.upper() for kwd in predef_func]
+tokens += [kwd.upper() for kwd in extra_words]
+
 # Regular expression rules for simple tokens
-t_PLUS    = r'\+'
-t_MINUS   = r'-'
+
+t_HASH = r'\#'
 t_TIMES   = r'\*'
 t_DIVIDE  = r'/'
-t_OPERATOR  = r'\<|\>'
+t_GT  = r'\>'
+t_LT  = r'\<'
 t_ASSIGNMENT = r'='
 t_LPAREN  = r'\('
 t_RPAREN  = r'\)'
 t_STRING = r'[a-zA-Z_]?\"(\\.|[^\\"])*\"'
-t_OSCOPE = r'{'
-t_CSCOPE = r'}'
 t_TERMINAL = r';'
+t_PLUSPLUS = r'\+\+'
+t_MINUSMINUS = r'\-\-'
+t_LEFTSQRBRACKET = r'\['
+t_RIGHTSQRBRACKET = r'\]'
+t_MULT_EQ = r'\*='
+t_DIVIDE_EQ = '/='
+t_MOD_EQ = '%='
+t_PLUS_EQ = r'\+='
+t_MINUS_EQ = '-='
+t_LSHIFT_EQ = '<<='
+t_RSHIFT_EQ = '>>='
+t_GTEQ = '>='
+t_LTEQ = '<='
+t_AND_EQ = '&='
+t_OR_EQ = r'\|='
+t_XOR_EQ = '\^='
+t_BIT_OR = r'\|'
+t_BIT_XOR = r'\^'
+t_BIT_AND = r'&'
+t_OR = r'\|\|'
+t_AND = '&&'
+t_EQUAL = '=='
+t_NEQUAL = '!='
+t_LSHIFT = '<<'
+t_RSHIFT = '>>'
+t_MOD = '%'
+t_U_PLUS    = r'\+'
+t_U_MINUS    = r'\-'
+t_BIT_NOT = '~'
+t_NOT = '!'
+t_COLON =':'
+t_LEFTCURLYBRACKET ='{'
+t_RIGHTCURLYBRACKET ='}'
+t_DEREF_ONE =r'\.'
+t_DEREF_TWO =r'–>'
+t_QUES_MARK = r'\?' 
+t_COMMA = r','  
+t_CHAR_CONST = r"\'.\'"
 
 def t_COMMENT(t):
     r"(/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/)|(//.*)"
@@ -52,14 +110,23 @@ def t_COMMENT(t):
     # No return value. Token discarded
 
 # A regular expression rule with some action code
-def t_NUMBER(t):
-    r'\d+'
-    t.value = int(t.value)    
+
+#def t_NUMBER(t):
+#   r'\.?[0-9][0-9eE_lLdDa-fA-F.xXpP]*'
+    #t.value = int(t.value)    
+#    return t
+
+def t_FLOATNUM(t):
+    r'[0-9]+\.[0-9]+'
+    t.value = float(t.value)
     return t
 
-def t_HEADER(t):
-	r'\#.*' 
-	pass
+
+def t_INTNUM(t):
+    r'[0-9]+'
+    t.value = int(t.value)
+    return t
+
 
 # Define a rule so we can track line numbers
 def t_newline(t):
@@ -68,80 +135,26 @@ def t_newline(t):
 
 def t_ID(t):
     r'[a-zA-Z_][a-zA-Z_0-9]*'
-    t.type = reserved.get(t.value,'ID')    # Check for reserved words
-    t.type = predef_func.get(t.value,'ID') 
+    if t.value in reserved or t.value in predef_func or t.value in extra_words:
+        t.type = t.value.upper()    # Check for reserved words
     return t
 
 # A string containing ignored characters (spaces and tabs)
-t_ignore  = ' \t' + r'$|,|\'|:'
+t_ignore  = ' \t' + r'$'
 
 # Error handling rule
 def t_error(t):
     print("Illegal character '%s'" % t.value[0])
     t.lexer.skip(1)
 
-# Build the lexer
-lexer = lex.lex()
+lex.lex()
 
-#inputs=[data,data2,data3,data4]
-data = open('cpp_code.cpp','r').read()
-inputs =[data,]
-
-data_type=''
-
-for data in inputs:
-	# Give the lexer some input
-	lexer.input(data)
-
-	main_table=[]
-	sym_table={}
-
-	inScope=1
-	outScope=0
-	prev_inScope=1
-
-	for key in reserved:
-		sym_table[key]=(reserved[key],(inScope,outScope),data_type)
-		
-	for key in predef_func:
-		sym_table[key]=(predef_func[key],(inScope,outScope),data_type)
-
-	main_table.append(sym_table)
-	# Tokenize
-	while True:
-		tok = lexer.token()
-		if not tok: 
-			break      # No more input
-
-		if tok.type == 'OSCOPE':
-			inScope=prev_inScope+1
-			prev_inScope+=1
-			outScope+=1
-			main_table.append({})
-		elif tok.type == 'CSCOPE':
-			inScope-=1
-			outScope-=1
-	
-		if tok.value in data_types:
-			data_type=tok.value
-
-		if tok.type == 'LPAREN' or tok.type == 'TERMINAL': 
-			if len(data_type)!=0:
-				data_type=''
-		flag=1
-		if tok.value in reserved.keys() or tok.value in predef_func.keys():
-			flag=0
-		
-		if tok.type == 'ID' and len(data_type)!=0 and flag==1:
-			main_table[inScope-1][tok.value]=(tok.type,(inScope,outScope),data_type)
-
-
-	heading=["NAME","TYPE","IN_SCOPE","OUT_SCOPE","ATTRIBUTE"]
-	
-	for table in main_table:
-		temp=[]
-		for key in table:
-			temp.append([key,table[key][0],table[key][1][0],table[key][1][1],table[key][2]])
-		print(tabulate(temp,headers=heading,tablefmt="psql"))
-		print("\n\n")
-	
+'''
+my_inp = open('cpp_code.cpp','r').read()
+lex.input(my_inp)
+while 1:
+    t = lex.token()
+    if not t: 
+         break      
+    print(t)
+'''
