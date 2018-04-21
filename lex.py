@@ -1,6 +1,7 @@
 import ply.lex as lex
 import sys
-from tabulate import tabulate
+from symbolTable import MainSymbolTable
+from symbolTable import SymbolTable
 
 reserved = dict.fromkeys(
 	['asm', 'else', 'new', 'this', 'auto', 'enum', 'operator', 'throw', 'bool', 'explicit', 'private', 'true', 'break', 'export', 'protected', 'try', 'case', 'extern', 'public', 'typedef', 'catch', 'false', 'register', 'typeid', 'char', 'float', 'reinterpret_cast', 'typename', 'class', 'for', 'return', 'union', 'const', 'friend', 'short', 'unsigned', 'const_cast', 'goto', 'signed', 'using', 'continue', 'if', 'sizeof', 'virtual', 'default', 'inline', 'static', 'void', 'delete', 'int', 'static_cast', 'volatile', 'do', 'long', 'struct', 'wchar_t', 'double', 'mutable', 'switch', 'while', 'dynamic_cast', 'namespace', 'template'] , 'KEYWORD'
@@ -111,10 +112,8 @@ def t_COMMENT(t):
 
 # A regular expression rule with some action code
 
-#def t_NUMBER(t):
-#   r'\.?[0-9][0-9eE_lLdDa-fA-F.xXpP]*'
-    #t.value = int(t.value)    
-#    return t
+main_table = MainSymbolTable()
+main_table.add_table(SymbolTable())
 
 def t_FLOATNUM(t):
     r'[0-9]+\.[0-9]+'
@@ -137,6 +136,9 @@ def t_ID(t):
     r'[a-zA-Z_][a-zA-Z_0-9]*'
     if t.value in reserved or t.value in predef_func or t.value in extra_words:
         t.type = t.value.upper()    # Check for reserved words
+    if t.type == 'ID':
+        symbol_table = main_table.get_table(main_table.inScope-1)
+        symbol_table.add_entry(t)
     return t
 
 # A string containing ignored characters (spaces and tabs)
@@ -144,8 +146,9 @@ t_ignore  = ' \t' + r'$'
 
 # Error handling rule
 def t_error(t):
-    print("Illegal character '%s'" % t.value[0])
+    print("Illegal character ",t.value[0])
     t.lexer.skip(1)
+
 
 lex.lex()
 
@@ -157,4 +160,7 @@ while 1:
     if not t: 
          break      
     print(t)
+
+
 '''
+

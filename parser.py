@@ -5,6 +5,31 @@ import AST
 
 # Get the token map from the lexer.  This is required.
 from lex import tokens
+from lex import main_table
+
+import sys
+
+from symbolTable import SymbolTable
+
+import TAC as TAC
+
+threeAC = TAC.threeAC()
+
+dec=0
+
+import warnings
+warnings.filterwarnings("ignore")
+
+import logging
+logging.basicConfig(
+	level = logging.DEBUG,
+	filename = "parselog.txt",
+	filemode = "w",
+	format = "%(filename)10s:%(lineno)4d:%(message)s"
+)
+log = logging.getLogger()
+
+
 
 #def p_preProc(p):
 #	'''preProc : HASH INCLUDE LT identifier GT stdNamespace '''
@@ -15,6 +40,7 @@ from lex import tokens
 #main function
 def p_mainFunc(p):
 	'''mainFunc : INT MAIN LPAREN RPAREN statement '''	
+	p[0] = p[5]
 
 def p_expression(p):
 	'''expression : assignmentExpression
@@ -27,6 +53,14 @@ def p_assignmentExpression(p):
 				| unaryExpression assignOper assignmentExpression'''
 	if(len(p)==2):
 		p[0]=p[1]
+	else:
+		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
+		if(p[2] == '='):
+			if(p[3] is not None):
+				if(p[3].expr_type == "constant"):
+					threeAC.AddToTable(p[0],p[3],'=')
+			else:
+				threeAC.AddToTable(p[0],'','=')
 
 def p_unaryExpression(p):
 	'''unaryExpression : postfixExpression 
@@ -37,6 +71,12 @@ def p_unaryExpression(p):
 			| SIZEOF LPAREN simpleTypeName RPAREN '''
 	if(len(p)==2):
 		p[0]=p[1]
+	elif len(p) == 3:
+		p[0] = AST.Expr("unPreOp",operator=p[1],operand1=p[2])
+		threeAC.AddToTable(p[2],'',p[1])	
+	else:
+		p[0] = AST.Expr("unaryop",operator=p[1],operand1=p[3])
+		threeAC.AddToTable(p[3],'',p[1])
 
 def p_primaryExpression(p):
 	'''primaryExpression : identifier
@@ -46,29 +86,36 @@ def p_primaryExpression(p):
 	if(len(p)==2):
 		if(isinstance(p[1],AST.Identifier)):
 			p[0] = AST.Expr("id",operand1=p[1])
-		else:	#constant
-			p[0]  = p[1]
+		else:	#constant or string
+			p[0]  = AST.Expr("constant",operand1=p[1])
+	else:
+		p[0]=p[2]
 	#have to write for others
 
 def p_postfixExpression(p):
 	'''postfixExpression : primaryExpression
 			| postfixExpression LEFTSQRBRACKET expression RIGHTSQRBRACKET
-			| postfixExpression DEREF_ONE identifier
-			| postfixExpression DEREF_TWO identifier
 			| postfixExpression PLUSPLUS
-			| postfixExpression MINUSMINUS
-			| DYNAMIC_CAST LT simpleTypeName GT LPAREN expression RPAREN 
-			| STATIC_CAST LT simpleTypeName GT LPAREN expression RPAREN
-			| CONST_CAST LT simpleTypeName GT LPAREN expression RPAREN '''
+			| postfixExpression MINUSMINUS'''
+			#| DYNAMIC_CAST LT simpleTypeName GT LPAREN expression RPAREN 
+			#| STATIC_CAST LT simpleTypeName GT LPAREN expression RPAREN
+			#| CONST_CAST LT simpleTypeName GT LPAREN expression RPAREN 
+			#| postfixExpression DEREF_ONE identifier
+			#| postfixExpression DEREF_TWO identifier
 	if(len(p)==2):
 		p[0]=p[1]
+	elif len(p)==5:
+		p[0] = AST.Expr("arrayop",operator='[]',operand1=p[1],operand2=p[3])
+		threeAC.AddToTable(p[1],p[3],'[]')
+	else:
+		threeAC.AddToTable(p[1],'',p[2])
+		p[0] = AST.Expr("unPostOp",operator=p[2],operand1=p[1])
 
 def p_constant(p):
 	'''constant : INTNUM
-			 | FLOATNUM
-             | CHAR_CONST'''
+		| FLOATNUM
+		| CHAR_CONST'''
 	p[0] = AST.Expr("constant",operand1=p[1])
-#             | enumerationConstant '''
 
 def p_assignOper(p):
 	'''assignOper : ASSIGNMENT
@@ -82,42 +129,58 @@ def p_assignOper(p):
 			 | AND_EQ
 			 | XOR_EQ
 			 | OR_EQ '''
+	p[0]=p[1]
 
 def p_conditionalExpression(p):
 	'''conditionalExpression : logicalOrExpression 
-                          | logicalOrExpression QUES_MARK expression COLON conditionalExpression'''
+                          | logicalOrExpression QUES_MARK expression COLON conditionalExpression''' #need to implement
 	if(len(p)==2):
 		p[0]=p[1]
-
+	
 def p_logicalOrExpression(p):
 	'''logicalOrExpression : logicalAndExpression 
 				| logicalOrExpression  OR   logicalAndExpression'''
 	if(len(p)==2):
 		p[0]=p[1]
+	else:
+		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
+		threeAC.AddToTable(p[1],p[3],p[2])
 
 def p_logicalAndExpression(p):
 	'''logicalAndExpression : inclusiveOrExpression 
 				| logicalAndExpression  AND   inclusiveOrExpression'''	
 	if(len(p)==2):
 		p[0]=p[1]
+	else:
+		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
+		threeAC.AddToTable(p[1],p[3],p[2])
 
 def p_inclusiveOrExpression(p):
 	'''inclusiveOrExpression : exclusiveOrExpression 
 			| inclusiveOrExpression BIT_OR exclusiveOrExpression'''
 	if(len(p)==2):
 		p[0]=p[1]
+	else:
+		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
+		threeAC.AddToTable(p[1],p[3],p[2])
 
 def p_exclusiveOrExpression(p):
 	'''exclusiveOrExpression : andExpression 
 			| exclusiveOrExpression BIT_XOR andExpression'''
 	if(len(p)==2):
 		p[0]=p[1]
+	else:
+		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
+		threeAC.AddToTable(p[1],p[3],p[2])
 
 def p_andExpression(p):
 	'''andExpression : equalityExpression 
 			| andExpression BIT_AND equalityExpression'''
 	if(len(p)==2):
 		p[0]=p[1]
+	else:
+		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
+		threeAC.AddToTable(p[1],p[3],p[2])
 
 def p_equalityExpression(p):
 	'''equalityExpression : relationalExpression 
@@ -125,6 +188,9 @@ def p_equalityExpression(p):
 			| equalityExpression NEQUAL relationalExpression'''
 	if(len(p)==2):
 		p[0]=p[1]
+	else:
+		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
+		threeAC.AddToTable(p[1],p[3],p[2])
 			
 def p_relationalExpression(p):
 	'''relationalExpression : shiftExpression
@@ -136,6 +202,7 @@ def p_relationalExpression(p):
 		p[0]=p[1]
 	else:
 		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
+		threeAC.AddToTable(p[1].value,p[3].value,p[2])
 			
 def p_shiftExpression(p):
 	'''shiftExpression : additiveExpression
@@ -143,12 +210,20 @@ def p_shiftExpression(p):
 			| shiftExpression RSHIFT additiveExpression'''
 	if(len(p)==2):
 		p[0]=p[1]
+	else:
+		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
+		threeAC.AddToTable(p[1],p[3],p[2])
 			
 def p_additiveExpression(p):
 	'''additiveExpression : multiplicativeExpression
 			| additiveExpression U_PLUS multiplicativeExpression
 			| additiveExpression U_MINUS multiplicativeExpression'''
-	if(len(p)==2):
+	if(len(p)==4):
+		if p[2] == '+':
+			p[0]=threeAC.AddToTable(p[1],p[3],'+')
+		elif p[2] == '-':
+			p[0]=threeAC.AddToTable(p[1],p[3],'-')
+	elif(len(p)==2):
 		p[0]=p[1]
 			
 def p_multiplicativeExpression(p):
@@ -156,16 +231,23 @@ def p_multiplicativeExpression(p):
 			| multiplicativeExpression TIMES castExpression
 			| multiplicativeExpression DIVIDE castExpression
 			| multiplicativeExpression MOD castExpression'''
-	if(len(p)==2):
-		p[0]=p[1]
+	if(len(p)==4):
+		if p[2] == '*':
+			p[0]=threeAC.AddToTable(p[1],p[3],'*')	
+		elif p[2] == '/':
+			p[0]=threeAC.AddToTable(p[1],p[3],'/')
+		elif (p[1] == '(' and p[3] == ')'):
+			p[0]=p[2]
+		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
+	elif len(p) == 2:
+		p[0] = p[1]
+
 
 def p_castExpression(p):
 	'''castExpression : unaryExpression
 			| LPAREN simpleTypeName RPAREN castExpression'''
 	if(len(p)==2):
 		p[0]=p[1]
-
-			
 
 def p_unaryOper(p):
 	'''unaryOper : TIMES
@@ -174,6 +256,7 @@ def p_unaryOper(p):
 			| U_MINUS
 			| NOT
 			| BIT_NOT'''
+	p[0]=p[1]
 		
 def p_simpleTypeName(p):
 	'''simpleTypeName : CHAR
@@ -200,31 +283,69 @@ def p_statement(p):
 			| expressionStatement
 			| compoundStatement
 			| selectionStatement
-			| iterationStatement
-			| jumpStatement'''
+			| jumpStatement'''	#| iterationStatement
+	p[0] = p[1]
 	
 			
 def p_labeledStatement(p):
 	'''labeledStatement : identifier COLON statement
-			| CASE constantExpression COLON statement
-			| DEFAULT COLON statement'''
-	if len(p) == 4:
-		if (p[1] == "default"):
-			p[0] = AST.CaseDefault(p[3])
+			| caseList default '''
+	if len(p) == 3:
+		p[0] = AST.CaseList(p[1], p[2])
+
+def p_caseList(p):
+	'''caseList : caseList CASE constantExpression COLON statement
+		| empty'''
+	if len(p) == 6:
+		p[1].add_case(p[3], p[5])
+		p[0] = p[1]
+	else:
+        	p[0] = AST.Case()
+
+def p_default(p):
+	'''default : DEFAULT COLON statement	
+		| empty '''
+	if(len(p)==4):
+		p[0] = AST.CaseDefault(p[3])
+	else:
+		p[0]=None
 			
 def p_constantExpression(p):
 	'''constantExpression : conditionalExpression '''
+	p[0]=p[1]
 
 def p_expressionStatement(p):
 	'''expressionStatement : expression TERMINAL
 			| empty'''
+	if len(p)==3:
+		p[0] = p[1]
+	else:
+		p[0] = None
 			
 def p_compoundStatement(p):
-	'''compoundStatement : LEFTCURLYBRACKET declarationList statementList RIGHTCURLYBRACKET
+	'''compoundStatement : oscope declarationList statementList cscope
 			| empty'''
 	if len(p) == 5:
-		p[0] = AST.CompoundStmt(p[3], p[2])
-			
+		if len(p[2].declarations) != 0:
+			p[0] = AST.CompoundStmt(p[3], p[2])
+		else:	
+			p[0] = AST.CompoundStmt(p[3])
+	else:
+		p[0] = None
+
+def p_oscope(p):
+	'''oscope : LEFTCURLYBRACKET'''
+	main_table.inScope=main_table.prev_inScope+1
+	main_table.prev_inScope+=1
+	main_table.outScope+=1
+	tab = SymbolTable()
+	main_table.add_table(tab)
+		
+def p_cscope(p):
+	'''cscope : RIGHTCURLYBRACKET'''
+	main_table.inScope-=1
+	main_table.outScope-=1											
+	
 def p_statementList(p):
 	'''statementList : statementList statement
 			| empty '''
@@ -235,64 +356,68 @@ def p_statementList(p):
 		p[0] = AST.StmtList()
 
 def p_declarationList(p):
-	'''declarationList : declarationList declaration 
+	'''declarationList : declarationList declaration
 			| empty '''
+	if len(p) == 2:
+		p[0] = AST.DecList()
+	else:
+        	p[1].add_decl(p[2])
+        	p[0] = p[1]
 
 def p_declaration(p):
 	'''declaration :  decSpecList initDecList TERMINAL '''
-	#decSpecList Done
+	global dec	
+	dec = 0
+	main_table.insert = 0
+	p[0] = AST.Declaration(p[1], p[2])
 
 def p_initDecList(p):
 	'''initDecList : initDecList COMMA markDec initDec
 			| initDec '''
 	if len(p)==2:
+		p[0] = AST.IdentList([p[1]])
+	else:
+		p[1].add_identifier(p[4])
 		p[0] = p[1]
 	
 
 def p_markDec(p):
 	'''markDec : empty '''
 	p[0] = p[-3]
-	print("marker:",p[0])
 
 def p_decSpecList(p):
 	'''decSpecList : decSpecList decSpec
 			| decSpec '''
 	if(len(p)==2):
-		#p[0] = copy.deepcopy(p[1])
 		p[0] = p[1]
 	else:
-		#p[0] = copy.deepcopy(p[1])
-		#p[0]['type']+=p[2]['type']
 		p[0] = p[1].combine(p[2].type)
-	
-	print(p[0].type)
+	global dec
+	dec=1
+	main_table.insert=1
 
 def p_initDec(p):
 	''' initDec : declarator
-                    | declarator ASSIGNMENT initializer'''	#not handled
-	if(len(p)==2):
-		p[0] = p[1]
-	#print("initDec:",p[0])
+                    | declarator ASSIGNMENT assignmentExpression'''	
+	if len(p)==4:
+		p[1].add_value(p[3])
+	p[0] = p[1]
 
 def p_declarator(p):
 	'''declarator : pointerList directDec'''
 	p[0] = p[2]
-	#if(p[1]!=None):
-		#p[0]['type']+=p[1]['type']
 
 def p_pointerList(p):
 	''' pointerList : pointer
 			| empty '''
 	if (p[1] != None):
 		p[0] = p[1]
-	print("pointerList:",p[0])
 
 def p_pointer(p):
 	'''pointer : star typeQualList
 		| empty	'''
 	if(len(p)==3):
 		p[0] = { 'type': p[1]['type'] + p[2]['type'] }	
-	print("pointer:",p[0])
 
 def p_star(p):
 	'''star : star TIMES
@@ -302,7 +427,6 @@ def p_star(p):
 	else:
 		p[0] = p[1]
 		p[0]['type']+='*'
-	#print("star:",p[0])
 
 def p_typeQualList(p):
 	''' typeQualList : typeQualifier
@@ -314,15 +438,15 @@ def p_typeQualList(p):
 
 def p_directDec(p):
 	'''directDec : identifier
-                      | LEFTCURLYBRACKET declarator RIGHTCURLYBRACKET
-                      | identifier arrayDec
-                      | directDec LEFTCURLYBRACKET idList RIGHTCURLYBRACKET
-		      | directDec LPAREN parTypeList RPAREN ''' 
-	#print("directDec:",p[1])
+                      | identifier arrayDec'''
+		      #| LEFTCURLYBRACKET declarator RIGHTCURLYBRACKET
+                      #| directDec LEFTCURLYBRACKET idList RIGHTCURLYBRACKET
+		      #| directDec LPAREN parTypeList RPAREN 
 	if(len(p)==3):
-		#p[0] = copy.deepcopy(p[1])
+		symbol_table = main_table.get_table(main_table.inScope-1)
 		p[1].changeToArray(p[2]['val'])
-		print(p[1].idtype,p[1].intnum)
+		symbol_table.change_array(p[2]['val'])
+	p[0]=p[1]
 
 def p_arrayDec(p): #constExprList
 	'''arrayDec : arrayDec LEFTSQRBRACKET INTNUM RIGHTSQRBRACKET	
@@ -336,73 +460,33 @@ def p_arrayDec(p): #constExprList
 
 def p_identifier(p):
 	'''identifier : ID'''
-	#print(p[-2])
-	if(p[-1] is None):
-		p[0] = AST.Identifier(p[1],idtype = p[-2].type)
+	symbol_table = main_table.get_table(main_table.inScope-1)
+	if(dec==1):
+		ret = symbol_table.check_existing(p[1])
+		if ret ==-1:
+			print("Redeclaration of variable:",p[1])
+			sys.exit()	
+		elif(p[-1] is None):
+			p[0] = AST.Identifier(p[1],idtype = p[-2].type)
+			symbol_table.add_type(p[-2].type)
+		else:
+			p[0] = AST.Identifier(p[1],idtype = p[-2].type+p[-1]['type'])
+			symbol_table.add_type(p[-2].type+p[-1]['type'])
 	else:
-		p[0] = AST.Identifier(p[1],idtype = p[-2].type+p[-1]['type']) #{'type':p[-2]['type']+p[-1]['type'],'lexval':p[1]}
-	print("identifier:",p[0].idtype,p[0].id)
-
+		#return sym table entry
+		symbol_table.check_existing(p[1])
+		p[0] = AST.Identifier(p[1])
 	#remember while adding to symbol table make changes in directDec for array type
-
-def p_parTypeList(p):
-	'''parTypeList : parList
-                        | parList COMMA DEREF_ONE DEREF_ONE DEREF_ONE '''
-
-def p_parList(p):
-	'''parList : parDec
-                   | parList COMMA parDec '''
-
-def p_parDec(p):
-	'''parDec : decSpecList declarator
-			| decSpecList abstractDec
-                        | decSpecList '''
-
-def p_abstractDec(p):
-	'''abstractDec : pointer
-                        | pointer directAbsDec
-                        | directAbsDec '''
-
-def p_directAbsDec(p):
-	'''directAbsDec : LPAREN abstractDec RPAREN
-			| directAbsDecList LEFTSQRBRACKET constExprList RIGHTSQRBRACKET
-                        | directAbsDecList LPAREN parTypeList RPAREN '''
-
-def p_directAbsDecList(p):
-	'''directAbsDecList : directAbsDec
-			    | empty '''
-
-def p_constExprList(p):
-	'''constExprList : constantExpression
-			| empty '''
-
-def p_idList(p):
-	'''idList : idList identifier
-		| empty '''
-
-# | <direct-declarator> ( <parameter-type-list> )
-
-
-def p_initializer(p):
-	'''initializer : assignmentExpression
-                | LEFTCURLYBRACKET initializerList RIGHTCURLYBRACKET
-                | LEFTCURLYBRACKET initializerList COMMA RIGHTCURLYBRACKET '''
-
-def p_initializerList(p):
-	'''initializerList : initializer
-                     | initializerList COMMA initializer'''
 
 def p_decSpec(p):
 	'''decSpec : StorageClassSpec
                           | simpleTypeName
                           | typeQualifier '''
-	#p[0]=copy.deepcopy(p[1])
 	p[0] = p[1]
 
 def p_typeQualifier(p):
 	''' typeQualifier : CONST
 			  | VOLATILE '''
-	#p[0] = {'type':p[1]}
 	p[0] = AST.Type(p[1])
 
 def p_StorageClassSpec(p):
@@ -411,53 +495,80 @@ def p_StorageClassSpec(p):
                             | STATIC
                             | EXTERN
                             | TYPEDEF '''
-	#p[0] = {'type':p[1]}
 	p[0] = AST.Type(p[1])
 			
 def p_selectionStatement(p):
-	'''selectionStatement : IF LPAREN expression RPAREN statement
-			| IF LPAREN expression RPAREN statement ELSE statement
-			| SWITCH LPAREN expression RPAREN statement'''
-	if len(p)==8:
+	'''selectionStatement : IF LPAREN ifmark expression RPAREN statement endifmark 
+			| IF LPAREN ifelsemark expression RPAREN statement ELSE elsemark statement endifelsemark
+			| SWITCH LPAREN switchmark expression RPAREN statement endswitchmark'''
+	if len(p)==11:
 		p[0] = AST.IfStmt(p[3], p[5], p[7])
-	elif len(p) == 6:
+	elif len(p) == 8:
 		if (p[1] == "if"):
 			p[0] = AST.IfStmt(p[3], p[5])
 		else:
 			p[0] = AST.SwitchStmt(p[3], p[5])
-		
-def p_iterationStatement(p):
-	'''iterationStatement : WHILE LPAREN expression RPAREN statement
-			| DO statement WHILE LPAREN expression RPAREN TERMINAL
-			| FOR LPAREN forInitStatementExpression TERMINAL expression RPAREN statement'''
-	if len(p) == 6:
-		p[0] = AST.WhileStmt("while", p[3], p[5])
-	elif len(p) == 8:
-		if (p[1] == "for"):
-			 p[0] = AST.ForStmt(p[3], p[5], p[7])
-		else:
-			p[0] = AST.WhileStmt("dowhile", p[5], p[2])
-			
-def p_forInitStatementExpression(p):
-	'''forInitStatementExpression : expressionStatement'''
-	#		| declarationStatement'''
-	p[0]=p[1]
+			#threeAC.AddToTable(p[3],p[5],p[1])
 
-		
+def p_ifmark(p):
+	'''ifmark : empty '''
+	threeAC.AddToTable('','',"if")
+
+def p_endifmark(p):
+	'''endifmark : empty '''
+	threeAC.AddToTable('','',"endif")
+
+def p_ifelsemark(p):
+	'''ifelsemark : empty '''
+	print("test")
+	threeAC.AddToTable('','',"ifelse")
+
+def p_elsemark(p):
+	'''elsemark : empty '''
+	threeAC.AddToTable('','',"else")
+
+def p_endifelsemark(p):
+	'''endifelsemark : empty '''
+	threeAC.AddToTable('','',"endifelse")
+
+def p_switchmark(p):
+	'''switchmark : empty '''
+	threeAC.AddToTable('','',"switch")
+
+def p_endswitchmark(p):
+	'''endswitchmark : empty '''
+	threeAC.AddToTable('','',"endswitch")
+
+
 def p_jumpStatement(p):
 	'''jumpStatement : BREAK TERMINAL
 			| CONTINUE TERMINAL
 			| RETURN expression TERMINAL
 			| RETURN TERMINAL
 			| GOTO identifier TERMINAL'''
+	if(p[1]=="break"):
+		p[0]=AST.JumpStmt()
+	elif(p[1]=="continue"):
+		p[0]=AST.JumpStmt("continue")
+	elif p[1] == "return":
+		if len(p)==4:
+			p[0] = AST.RetStmt(p[2])
+		else:
+			p[0] = AST.RetStmt()
 
-# Error rule for syntax errors
+# Error rule for syntax errorscl
 def p_error(p):
-    print("Syntax error in input\n error:",p,"at line:",p.lineno)
+    if p is not None:
+       print("Syntax error in input\n error: near",p.value,"at line:",p.lineno)
+	
 
 # 	Build the parser
-parser = yacc.yacc()
+parser = yacc.yacc(debug = log)
 
 s=open('cpp_code.cpp','r').read()
-result = parser.parse(s)
-print(result)
+result = parser.parse(s,debug=log)
+if result is not None:
+	with open("AST.txt",'w') as f:
+		f.write(str(result))
+threeAC.ThreeAddressCode()
+#main_table.print_table()
