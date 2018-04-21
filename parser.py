@@ -9,27 +9,28 @@ from lex import main_table
 
 import sys
 
-from symbolTable import SymbolTable
-
 import TAC as TAC
 
 threeAC = TAC.threeAC()
+
+from symbolTable import SymbolTable
+
+def get_node(symtab,val):
+	while(True):
+		indicies = [index for index, value in enumerate(symtab.variables) if value == val]
+		if len(indicies)>0:
+			for x in indicies:
+				if symtab.symtab[indicies[0]][0][1]!=None:
+					return symtab.symtab[indicies[0]][1]
+		if symtab.outScope > 0:
+			symtab = main_table.get_table(symtab.outScope-1)
+		else:
+			return -1
 
 dec=0
 
 import warnings
 warnings.filterwarnings("ignore")
-
-import logging
-logging.basicConfig(
-	level = logging.DEBUG,
-	filename = "parselog.txt",
-	filemode = "w",
-	format = "%(filename)10s:%(lineno)4d:%(message)s"
-)
-log = logging.getLogger()
-
-
 
 #def p_preProc(p):
 #	'''preProc : HASH INCLUDE LT identifier GT stdNamespace '''
@@ -55,13 +56,19 @@ def p_assignmentExpression(p):
 		p[0]=p[1]
 	else:
 		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
+		# if(p[1] is not None or p[3] is not None):
+		# 	if (p[1].type!=p[3].type):
+		# 		print("Datatype mismatch, performing coercion!")
+		# 		#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
+		# 		#mismatch has to mean int and float, hence coercion to float
+		# 		p[0].type=p[1].type
 		if(p[2] == '='):
 			if(p[3] is not None):
 				if(p[3].expr_type == "constant"):
-					threeAC.AddToTable(p[0],p[3],'=')
+					threeAC.AddToTable(p[1],p[3],'=')
 			else:
-				threeAC.AddToTable(p[0],'','=')
-
+				threeAC.AddToTable(p[1],'','=')
+	
 def p_unaryExpression(p):
 	'''unaryExpression : postfixExpression 
 			| PLUSPLUS unaryExpression
@@ -73,24 +80,31 @@ def p_unaryExpression(p):
 		p[0]=p[1]
 	elif len(p) == 3:
 		p[0] = AST.Expr("unPreOp",operator=p[1],operand1=p[2])
-		threeAC.AddToTable(p[2],'',p[1])	
+		p[0].type = p[2].type
+		threeAC.AddToTable(p[2],'',p[1])
 	else:
 		p[0] = AST.Expr("unaryop",operator=p[1],operand1=p[3])
+		p[0].type = p[2].type
 		threeAC.AddToTable(p[3],'',p[1])
 
 def p_primaryExpression(p):
-	'''primaryExpression : identifier
+	'''primaryExpression : markid 
                        | constant
-                       | STRING
+                       | markstr STRING
                        | LPAREN expression RPAREN '''
 	if(len(p)==2):
-		if(isinstance(p[1],AST.Identifier)):
-			p[0] = AST.Expr("id",operand1=p[1])
-		else:	#constant or string
-			p[0]  = AST.Expr("constant",operand1=p[1])
+		p[0] = p[1]
+	elif len(p) == 3: #string
+		p[0]  = AST.Expr("constant",operand1=p[1],constType='string')
 	else:
 		p[0]=p[2]
-	#have to write for others
+
+def p_markid(p):
+	'''markid : identifier'''
+	p[0] = AST.Expr("id",operand1=p[1],constType=p[1].type)
+
+def p_markstr(p):
+	'''markstr : '''
 
 def p_postfixExpression(p):
 	'''postfixExpression : primaryExpression
@@ -105,17 +119,33 @@ def p_postfixExpression(p):
 	if(len(p)==2):
 		p[0]=p[1]
 	elif len(p)==5:
+		if(p[3].type!='int'):
+			print("Array index has to be int!")
 		p[0] = AST.Expr("arrayop",operator='[]',operand1=p[1],operand2=p[3])
+		p[0].type = p[1].type.split('[')[0]
 		threeAC.AddToTable(p[1],p[3],'[]')
 	else:
-		threeAC.AddToTable(p[1],'',p[2])
 		p[0] = AST.Expr("unPostOp",operator=p[2],operand1=p[1])
+		p[0].type = p[1].type
+		threeAC.AddToTable(p[1],'',p[2])
 
 def p_constant(p):
-	'''constant : INTNUM
-		| FLOATNUM
-		| CHAR_CONST'''
-	p[0] = AST.Expr("constant",operand1=p[1])
+	'''constant : markint INTNUM
+		| markfloat FLOATNUM
+		| markchar CHAR_CONST'''
+	p[0] = AST.Expr("constant",operand1=p[2],constType=p[1])
+
+def p_markint(p):
+	'''markint : empty'''
+	p[0] = 'int'
+
+def p_markfloat(p):
+	'''markfloat : empty'''
+	p[0] = 'float'
+
+def p_markchar(p):
+	'''markchar : empty'''
+	p[0] = 'char'
 
 def p_assignOper(p):
 	'''assignOper : ASSIGNMENT
@@ -136,7 +166,7 @@ def p_conditionalExpression(p):
                           | logicalOrExpression QUES_MARK expression COLON conditionalExpression''' #need to implement
 	if(len(p)==2):
 		p[0]=p[1]
-	
+		
 def p_logicalOrExpression(p):
 	'''logicalOrExpression : logicalAndExpression 
 				| logicalOrExpression  OR   logicalAndExpression'''
@@ -144,6 +174,19 @@ def p_logicalOrExpression(p):
 		p[0]=p[1]
 	else:
 		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
+		if (p[1].type==p[3].type):
+			if(p[1].type=="char" or p[3].type=="char"):
+				print("Error! Cannot perform operation on character datatype!")
+				sys.exit()
+			elif (p[1].type=="int"):
+				p[0].type = "int"
+			else:
+				p[0].type = "float"
+		elif (p[1].type!=p[3].type):
+			#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
+			print("Datatype mismatch in logical OR expression, performing coercion!")
+			#mismatch has to mean int and float, hence coercion to float
+			p[0].type = "float"
 		threeAC.AddToTable(p[1],p[3],p[2])
 
 def p_logicalAndExpression(p):
@@ -153,6 +196,19 @@ def p_logicalAndExpression(p):
 		p[0]=p[1]
 	else:
 		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
+		if (p[1].type==p[3].type):
+			if(p[1].type=="char" or p[3].type=="char"):
+				print("Error! Cannot perform operation on character datatype!")
+				sys.exit()
+			elif (p[1].type=="int"):
+				p[0].type = "int"
+			else:
+				p[0].type = "float"
+		elif (p[1].type!=p[3].type):
+			#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
+			print("Datatype mismatch in logical AND expression, performing coercion!")
+			#mismatch has to mean int and float, hence coercion to float
+			p[0].type = "float"
 		threeAC.AddToTable(p[1],p[3],p[2])
 
 def p_inclusiveOrExpression(p):
@@ -162,6 +218,19 @@ def p_inclusiveOrExpression(p):
 		p[0]=p[1]
 	else:
 		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
+		if (p[1].type==p[3].type):
+			if(p[1].type=="char" or p[3].type=="char"):
+				print("Error! Cannot perform operation on character datatype!")
+				sys.exit()
+			elif (p[1].type=="int"):
+				p[0].type = "int"
+			else:
+				p[0].type = "float"
+		elif (p[1].type!=p[3].type):
+			#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
+			print("Datatype mismatch in inclusive OR expression, performing coercion!")
+			#mismatch has to mean int and float, hence coercion to float
+			p[0].type = "float"
 		threeAC.AddToTable(p[1],p[3],p[2])
 
 def p_exclusiveOrExpression(p):
@@ -171,6 +240,19 @@ def p_exclusiveOrExpression(p):
 		p[0]=p[1]
 	else:
 		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
+		if (p[1].type==p[3].type):
+			if(p[1].type=="char" or p[3].type=="char"):
+				print("Error! Cannot perform operation on character datatype!")
+				sys.exit()
+			elif (p[1].type=="int"):
+				p[0].type = "int"
+			else:
+				p[0].type = "float"
+		elif (p[1].type!=p[3].type):
+			#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
+			print("Datatype mismatch in XOR expression, performing coercion!")
+			#mismatch has to mean int and float, hence coercion to float
+			p[0].type = "float"
 		threeAC.AddToTable(p[1],p[3],p[2])
 
 def p_andExpression(p):
@@ -180,6 +262,19 @@ def p_andExpression(p):
 		p[0]=p[1]
 	else:
 		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
+		if (p[1].type==p[3].type):
+			if(p[1].type=="char" or p[3].type=="char"):
+				print("Error! Cannot perform operation on character datatype!")
+				sys.exit()
+			elif (p[1].type=="int"):
+				p[0].type = "int"
+			else:
+				p[0].type = "float"
+		elif (p[1].type!=p[3].type):
+			#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
+			print("Datatype mismatch in bitwise AND expression, performing coercion!")
+			#mismatch has to mean int and float, hence coercion to float
+			p[0].type = "float"
 		threeAC.AddToTable(p[1],p[3],p[2])
 
 def p_equalityExpression(p):
@@ -190,7 +285,21 @@ def p_equalityExpression(p):
 		p[0]=p[1]
 	else:
 		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
+		if (p[1].type==p[3].type):
+			if(p[1].type=="char" or p[3].type=="char"):
+				print("Error! Cannot perform operation on character datatype!")
+				sys.exit()
+			elif (p[1].type=="int"):
+				p[0].type = "int"
+			else:
+				p[0].type = "float"
+		elif (p[1].type!=p[3].type):
+			#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
+			print("Datatype mismatch in equality expression, performing coercion!")
+			#mismatch has to mean int and float, hence coercion to float
+			p[0].type = "float"
 		threeAC.AddToTable(p[1],p[3],p[2])
+		
 			
 def p_relationalExpression(p):
 	'''relationalExpression : shiftExpression
@@ -202,6 +311,19 @@ def p_relationalExpression(p):
 		p[0]=p[1]
 	else:
 		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
+		if (p[1].type==p[3].type):
+			if(p[1].type=="char" or p[3].type=="char"):
+				print("Error! Cannot perform operation on character datatype!")
+				sys.exit()
+			elif (p[1].type=="int"):
+				p[0].type = "int"
+			else:
+				p[0].type = "float"
+		elif (p[1].type!=p[3].type):
+			#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
+			print("Datatype mismatch in relational expression, performing coercion!")
+			#mismatch has to mean int and float, hence coercion to float
+			p[0].type = "float"
 		threeAC.AddToTable(p[1].value,p[3].value,p[2])
 			
 def p_shiftExpression(p):
@@ -212,36 +334,78 @@ def p_shiftExpression(p):
 		p[0]=p[1]
 	else:
 		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
+		if (p[1].type==p[3].type):
+			if(p[1].type=="char" or p[3].type=="char"):
+				print("Error! Cannot perform operation on character datatype!")
+				sys.exit()
+			elif (p[1].type=="int"):
+				p[0].type = "int"
+			else:
+				p[0].type = "float"
+		elif (p[1].type!=p[3].type):
+			#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
+			print("Datatype mismatch in shift expression, performing coercion!")
+			#mismatch has to mean int and float, hence coercion to float
+			p[0].type = "float"
 		threeAC.AddToTable(p[1],p[3],p[2])
 			
 def p_additiveExpression(p):
 	'''additiveExpression : multiplicativeExpression
 			| additiveExpression U_PLUS multiplicativeExpression
 			| additiveExpression U_MINUS multiplicativeExpression'''
-	if(len(p)==4):
-		if p[2] == '+':
-			p[0]=threeAC.AddToTable(p[1],p[3],'+')
-		elif p[2] == '-':
-			p[0]=threeAC.AddToTable(p[1],p[3],'-')
-	elif(len(p)==2):
+	if(len(p)==2):
 		p[0]=p[1]
-			
+	else:
+		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
+		if (p[1].type==p[3].type):
+			if(p[1].type=="char" or p[3].type=="char"):
+				print("Error! Cannot perform operation on character datatype!")
+				sys.exit()
+			elif (p[1].type=="int"):
+				p[0].type="int"
+				print(p[0].type)
+			else:
+				p[0].type="float"
+		elif (p[1].type!=p[3].type):
+			#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
+			print("Datatype mismatch in additive expression, performing coercion!")
+			#mismatch has to mean int and float, hence coercion to float
+			p[0].type = "float"
+		if(len(p)==4):
+			if p[2] == '+':
+				p[0]=threeAC.AddToTable(p[1],p[3],'+')
+			elif p[2] == '-':
+				p[0]=threeAC.AddToTable(p[1],p[3],'-')			
+
 def p_multiplicativeExpression(p):
 	'''multiplicativeExpression : castExpression
 			| multiplicativeExpression TIMES castExpression
 			| multiplicativeExpression DIVIDE castExpression
 			| multiplicativeExpression MOD castExpression'''
-	if(len(p)==4):
-		if p[2] == '*':
-			p[0]=threeAC.AddToTable(p[1],p[3],'*')	
-		elif p[2] == '/':
-			p[0]=threeAC.AddToTable(p[1],p[3],'/')
-		elif (p[1] == '(' and p[3] == ')'):
-			p[0]=p[2]
+	if(len(p)==2):
+		p[0]=p[1]
+	else:
 		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
-	elif len(p) == 2:
-		p[0] = p[1]
-
+		if (p[1].type==p[3].type):
+			if(p[1].type=="char" or p[3].type=="char"):
+				print("Error! Cannot perform operation on character datatype!")
+				sys.exit()
+			elif (p[1].type=="int"):
+				p[0].type = "int"
+			else:
+				p[0].type = "float"
+		elif (p[1].type!=p[3].type):
+			#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
+			print("Datatype mismatch in multiplicative expression, performing coercion!")
+			#mismatch has to mean int and float, hence coercion to float
+			p[0].type = "float"
+		if(len(p)==4):
+			if p[2] == '*':
+				p[0]=threeAC.AddToTable(p[1],p[3],'*')	
+			elif p[2] == '/':
+				p[0]=threeAC.AddToTable(p[1],p[3],'/')
+			elif (p[1] == '(' and p[3] == ')'):
+				p[0]=p[2]
 
 def p_castExpression(p):
 	'''castExpression : unaryExpression
@@ -338,7 +502,7 @@ def p_oscope(p):
 	main_table.inScope=main_table.prev_inScope+1
 	main_table.prev_inScope+=1
 	main_table.outScope+=1
-	tab = SymbolTable()
+	tab = SymbolTable(main_table.outScope)
 	main_table.add_table(tab)
 		
 def p_cscope(p):
@@ -468,14 +632,20 @@ def p_identifier(p):
 			sys.exit()	
 		elif(p[-1] is None):
 			p[0] = AST.Identifier(p[1],idtype = p[-2].type)
-			symbol_table.add_type(p[-2].type)
+			symbol_table.add_type(p[-2].type,p[0])
 		else:
 			p[0] = AST.Identifier(p[1],idtype = p[-2].type+p[-1]['type'])
-			symbol_table.add_type(p[-2].type+p[-1]['type'])
+			symbol_table.add_type(p[-2].type+p[-1]['type'],p[0])
 	else:
 		#return sym table entry
 		symbol_table.check_existing(p[1])
-		p[0] = AST.Identifier(p[1])
+		node = get_node(symbol_table,p[1])
+		if node != -1:
+			p[0] = node
+		else:
+			print("Variable undeclared or outOfScope!")
+			sys.exit()
+		
 	#remember while adding to symbol table make changes in directDec for array type
 
 def p_decSpec(p):
@@ -508,7 +678,6 @@ def p_selectionStatement(p):
 			p[0] = AST.IfStmt(p[3], p[5])
 		else:
 			p[0] = AST.SwitchStmt(p[3], p[5])
-			#threeAC.AddToTable(p[3],p[5],p[1])
 
 def p_ifmark(p):
 	'''ifmark : empty '''
@@ -539,7 +708,6 @@ def p_endswitchmark(p):
 	'''endswitchmark : empty '''
 	threeAC.AddToTable('','',"endswitch")
 
-
 def p_jumpStatement(p):
 	'''jumpStatement : BREAK TERMINAL
 			| CONTINUE TERMINAL
@@ -563,12 +731,14 @@ def p_error(p):
 	
 
 # 	Build the parser
-parser = yacc.yacc(debug = log)
+parser = yacc.yacc()
 
 s=open('cpp_code.cpp','r').read()
-result = parser.parse(s,debug=log)
+result = parser.parse(s)
 if result is not None:
 	with open("AST.txt",'w') as f:
 		f.write(str(result))
+
 threeAC.ThreeAddressCode()
+
 #main_table.print_table()

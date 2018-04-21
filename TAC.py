@@ -27,19 +27,16 @@ class threeAC:
 	def AddToTable(self,opd1,opd2,opr):			
 		if(opd1 is not None):
 			if(isinstance(opd1,AST.Expr)):
-				if(opd1.expr_type == "binop" or opd2 == ''):
-					op1 = opd1.operand1.operand1.id
-				else:
-					op1 = opd1.operand1.id
+				# if(opd1.expr_type == "binop" or opd2 == ''):
+				# 	op1 = opd1.operand1.operand1.id
+				# else:
+				op1 = opd1.operand1.id
 			else:
 				op1 = opd1
 
 		if(opd2 is not None):
 			if(isinstance(opd2,AST.Expr)):
-				if(opd2.expr_type == "constant"):
-					op2 = opd2.operand1.operand1
-				else:	
-					op2 = opd2.operand1.id
+				op2 = opd2.operand1.id
 			else:
 				op2 = opd2
 
