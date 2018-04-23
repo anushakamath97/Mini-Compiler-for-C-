@@ -144,7 +144,7 @@ class Identifier(Node):
     def __init__(self, id,intnum=None, idtype="non-array"):
         self.id = id
         self.intnum = intnum	#This value will be not None if array
-        self.idtype = idtype
+        self.type = idtype
         self.value = None              
 
     def __str__(self):
@@ -153,21 +153,21 @@ class Identifier(Node):
             outputstr += "id : " + str(self.id) + ",\t"
         if self.intnum is not None:
             outputstr += "intnum : " + str(self.intnum) + ",\t"
-        if self.idtype is not None:
-            outputstr += "idtype : " + str(self.idtype)
+        if self.type is not None:
+            outputstr += "idtype : " + str(self.type)
         if self.value is not None:
             outputstr += ",\t" "value :" + str(self.value)
         return outputstr+"\n"
  
     def changeToArray(self,val):
-        self.idtype = "array"
-        self.intnum = val
+        for x in val:
+          self.type += '['+str(x) +']'
 
     def add_value(self,valNode):
         self.value = valNode
 
     def printast(self):
-        if self.idtype == "array":
+        if self.type == "array":
             return str(self.id)+"["+str(self.intnum)+"]"
         else:
             return str(self.id)
@@ -602,7 +602,7 @@ class CaseDefault(Node):
 
 
 class Expr(Node):
-    def __init__(self, expr_type, operand1=None, operand2=None, operator=None, idval=None, idIDX=None):
+    def __init__(self, expr_type, operand1=None, operand2=None, operator=None, idval=None, idIDX=None,constType=None):
         self.expr_type = expr_type
         # This expr_type value is either
         # 'unop', 'binop'
@@ -613,6 +613,10 @@ class Expr(Node):
         self.idIDX = idIDX
         self.operand1 = operand1
         self.operand2 = operand2
+        if expr_type == 'constant' or expr_type == 'id':
+           self.type = constType
+        else: #need to change
+           self.type = None
 
     def __str__(self):
         outputstr = "\n[Expr] : \n"

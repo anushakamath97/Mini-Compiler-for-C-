@@ -56,12 +56,12 @@ def p_assignmentExpression(p):
 		p[0]=p[1]
 	else:
 		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
-		# if(p[1] is not None or p[3] is not None):
-		# 	if (p[1].type!=p[3].type):
-		# 		print("Datatype mismatch, performing coercion!")
-		# 		#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
-		# 		#mismatch has to mean int and float, hence coercion to float
-		# 		p[0].type=p[1].type
+		if(p[1] is not None and p[3] is not None):
+			if (p[1].type!=p[3].type):
+				print("Datatype mismatch, performing coercion!")
+				#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
+				#mismatch has to mean int and float, hence coercion to float
+				p[0].type=p[1].type
 		if(p[2] == '='):
 			if(p[3] is not None):
 				if(p[3].expr_type == "constant"):
@@ -285,19 +285,20 @@ def p_equalityExpression(p):
 		p[0]=p[1]
 	else:
 		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
-		if (p[1].type==p[3].type):
-			if(p[1].type=="char" or p[3].type=="char"):
-				print("Error! Cannot perform operation on character datatype!")
-				sys.exit()
-			elif (p[1].type=="int"):
-				p[0].type = "int"
-			else:
+		if(p[1] is not None and p[3] is not None):	
+			if (p[1].type==p[3].type):
+				if(p[1].type=="char" or p[3].type=="char"):
+					print("Error! Cannot perform operation on character datatype!")
+					sys.exit()
+				elif (p[1].type=="int"):
+					p[0].type = "int"
+				else:
+					p[0].type = "float"
+			elif (p[1].type!=p[3].type):
+				#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
+				print("Datatype mismatch in equality expression, performing coercion!")
+				#mismatch has to mean int and float, hence coercion to float
 				p[0].type = "float"
-		elif (p[1].type!=p[3].type):
-			#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
-			print("Datatype mismatch in equality expression, performing coercion!")
-			#mismatch has to mean int and float, hence coercion to float
-			p[0].type = "float"
 		threeAC.AddToTable(p[1],p[3],p[2])
 		
 			
@@ -740,5 +741,6 @@ if result is not None:
 		f.write(str(result))
 
 threeAC.ThreeAddressCode()
+threeAC.OPT()
 
 #main_table.print_table()

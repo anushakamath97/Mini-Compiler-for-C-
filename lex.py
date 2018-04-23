@@ -113,7 +113,7 @@ def t_COMMENT(t):
 # A regular expression rule with some action code
 
 main_table = MainSymbolTable()
-main_table.add_table(SymbolTable())
+main_table.add_table(SymbolTable(main_table.outScope))
 
 def t_FLOATNUM(t):
     r'[0-9]+\.[0-9]+'

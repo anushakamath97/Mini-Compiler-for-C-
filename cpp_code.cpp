@@ -17,13 +17,15 @@ int main()
 
 	d=a+b;
 	m=5;
-	if(m==10)
+	if(a==10)
 	{	b=10;
 		a=5;
 		d = a+b;
 		if(i==5)
 			number = 20;
+			
 		i=100;
+		//b=1;
 	}
 	m=a+b;
 	/*else

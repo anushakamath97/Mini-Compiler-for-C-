@@ -18,12 +18,13 @@ class MainSymbolTable:
 			tab.print_table()
 
 class SymbolTable:
-	def __init__(self):
+	def __init__(self,out):
 		self.symtab = []
 		self.variables = []
+		self.outScope = out
 
 	def add_entry(self,tok):
-		token = [tok.type,None,tok.value,tok.lineno,tok.lexpos]
+		token = [[tok.type,None,tok.value,tok.lineno,tok.lexpos],]
 		self.symtab.append(token)
 		self.variables.append(tok.value)
 
@@ -35,18 +36,20 @@ class SymbolTable:
 			return -1
 		return 0
 
-	def add_type(self,dtype):
-		self.symtab[-1][1] = dtype
+	def add_type(self,dtype,node):
+		self.symtab[-1][0][1] = dtype
+		self.symtab[-1].append(node)
 
 	def change_array(self,val):
 		for x in val:
-			self.symtab[-1][1] += '['+str(x)+']'
-
+			self.symtab[-1][0][1] += '['+str(x)+']'
+		
 	def print_table(self):
 		heading=["TOK_TYPE","DTYPE","NAME","LINE_NO","POSITION"]
 		sym_tab =[]
 		for x in self.symtab:
-			if x[1] is not None:
-				sym_tab.append(x)
+			if x[0][1] is not None:
+				sym_tab.append(x[0])
 		if len(sym_tab)!=0:
 			print(tabulate(sym_tab,headers=heading,tablefmt="psql"))
+

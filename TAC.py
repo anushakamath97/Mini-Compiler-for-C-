@@ -17,14 +17,14 @@ class threeAC:
 	step=0
 	labels=[]
 	lc=0
-
+	opcode = []
 	def make_newlabel(self):
 		label = 'L_' + str(self.labelcount)
 		self.labelcount += 1
 		return label
 
 
-	def AddToTable(self,opd1,opd2,opr):			
+	def AddToTable(self,opd1,opd2,opr):
 		if(opd1 is not None):
 			if(isinstance(opd1,AST.Expr)):
 				# if(opd1.expr_type == "binop" or opd2 == ''):
@@ -36,17 +36,21 @@ class threeAC:
 
 		if(opd2 is not None):
 			if(isinstance(opd2,AST.Expr)):
-				op2 = opd2.operand1.id
+				if(opd2.expr_type=="id"):
+					op2 = opd2.operand1.id
+				else:
+					op2 = opd2.operand1
 			else:
+				#print(opd2)
 				op2 = opd2
-
-		self.code.append(self.incode(op1 = op1,op2 = op2,opr=opr))
+		if(op1 is not None and op2 is not None):
+			self.code.append(self.incode(op1 = op1,op2 = op2,opr=opr))
 		# if(self.code[self.ind].opr != '='):
 		# 	self.temp += 1
 		self.ind+=1
 
 	def ThreeAddressCode(self):
-		print(self.code)
+		#print(self.code)
 		temp=self.temp
 		cnt=0
 		print("THREE ADDRESS CODE")
@@ -149,3 +153,43 @@ class threeAC:
 		print("\n")
 		return 
 
+	#constant propagation	
+	def OPT(self):
+		self.opcode = list(self.code)
+		print(self.opcode)
+		print("OPTIMIZED CODE")
+		ctr=0
+		if_flag=0
+		while(self.opcode[ctr] is not None):
+			if(self.opcode[ctr].op2 != ''):	
+				if(self.opcode[ctr].opr == "="):	
+					var=self.opcode[ctr].op1
+					const=self.opcode[ctr].op2
+					print("var="+str(var))
+					print("const="+str(const))
+					
+					ctr2=ctr+1
+					if(ctr2<(len(self.opcode)-1)):	
+						while(self.opcode[ctr2] is not None):
+							if(self.opcode[ctr2].op1 == var):
+								self.opcode[ctr2]=self.opcode[ctr2]._replace(op1 = const)
+							if(self.opcode[ctr2].op2 == var):
+								self.opcode[ctr2]=self.opcode[ctr2]._replace(op2 = const)
+							if(ctr2<(len(self.opcode)-1)):
+								ctr2+=1
+							else: 
+								break
+
+			if(ctr<(len(self.opcode)-1)):
+				ctr+=1
+			else:
+				break	
+			
+		print(self.code)	
+		ctr=0
+		while(self.opcode[ctr] is not None):
+			print(self.opcode[ctr])
+			if(ctr<(len(self.opcode)-1)):
+				ctr+=1
+			else:
+				break
