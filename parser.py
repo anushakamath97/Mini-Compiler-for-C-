@@ -9,6 +9,10 @@ from lex import main_table
 
 import sys
 
+import TAC as TAC
+
+threeAC = TAC.threeAC()
+
 from symbolTable import SymbolTable
 
 def get_node(symtab,val):
@@ -52,11 +56,19 @@ def p_assignmentExpression(p):
 		p[0]=p[1]
 	else:
 		p[0] = AST.Expr("binop",operator=p[2],operand1=p[1],operand2=p[3])
-		if (p[1].type!=p[3].type):
-			print("Datatype mismatch, performing coercion!")
-			#mismatch has to mean int and float, hence coercion to float
-			p[0].type=p[1].type
-
+		if(p[1] is not None and p[3] is not None):
+			if (p[1].type!=p[3].type):
+				print("Datatype mismatch, performing coercion!")
+				#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
+				#mismatch has to mean int and float, hence coercion to float
+				p[0].type=p[1].type
+		if(p[2] == '='):
+			if(p[3] is not None):
+				if(p[3].expr_type == "constant"):
+					threeAC.AddToTable(p[1],p[3],'=')
+			else:
+				threeAC.AddToTable(p[1],'','=')
+	
 def p_unaryExpression(p):
 	'''unaryExpression : postfixExpression 
 			| PLUSPLUS unaryExpression
@@ -69,9 +81,11 @@ def p_unaryExpression(p):
 	elif len(p) == 3:
 		p[0] = AST.Expr("unPreOp",operator=p[1],operand1=p[2])
 		p[0].type = p[2].type
+		threeAC.AddToTable(p[2],'',p[1])
 	else:
 		p[0] = AST.Expr("unaryop",operator=p[1],operand1=p[3])
 		p[0].type = p[2].type
+		threeAC.AddToTable(p[3],'',p[1])
 
 def p_primaryExpression(p):
 	'''primaryExpression : markid 
@@ -109,9 +123,11 @@ def p_postfixExpression(p):
 			print("Array index has to be int!")
 		p[0] = AST.Expr("arrayop",operator='[]',operand1=p[1],operand2=p[3])
 		p[0].type = p[1].type.split('[')[0]
+		threeAC.AddToTable(p[1],p[3],'[]')
 	else:
 		p[0] = AST.Expr("unPostOp",operator=p[2],operand1=p[1])
 		p[0].type = p[1].type
+		threeAC.AddToTable(p[1],'',p[2])
 
 def p_constant(p):
 	'''constant : markint INTNUM
@@ -150,7 +166,7 @@ def p_conditionalExpression(p):
                           | logicalOrExpression QUES_MARK expression COLON conditionalExpression''' #need to implement
 	if(len(p)==2):
 		p[0]=p[1]
-	
+		
 def p_logicalOrExpression(p):
 	'''logicalOrExpression : logicalAndExpression 
 				| logicalOrExpression  OR   logicalAndExpression'''
@@ -163,14 +179,15 @@ def p_logicalOrExpression(p):
 				print("Error! Cannot perform operation on character datatype!")
 				sys.exit()
 			elif (p[1].type=="int"):
-				p[0].type=="int"
+				p[0].type = "int"
 			else:
-				p[0].type=="float"
+				p[0].type = "float"
 		elif (p[1].type!=p[3].type):
 			#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
 			print("Datatype mismatch in logical OR expression, performing coercion!")
 			#mismatch has to mean int and float, hence coercion to float
-			p[0].type=="float"
+			p[0].type = "float"
+		threeAC.AddToTable(p[1],p[3],p[2])
 
 def p_logicalAndExpression(p):
 	'''logicalAndExpression : inclusiveOrExpression 
@@ -184,14 +201,15 @@ def p_logicalAndExpression(p):
 				print("Error! Cannot perform operation on character datatype!")
 				sys.exit()
 			elif (p[1].type=="int"):
-				p[0].type=="int"
+				p[0].type = "int"
 			else:
-				p[0].type=="float"
+				p[0].type = "float"
 		elif (p[1].type!=p[3].type):
 			#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
 			print("Datatype mismatch in logical AND expression, performing coercion!")
 			#mismatch has to mean int and float, hence coercion to float
-			p[0].type=="float"
+			p[0].type = "float"
+		threeAC.AddToTable(p[1],p[3],p[2])
 
 def p_inclusiveOrExpression(p):
 	'''inclusiveOrExpression : exclusiveOrExpression 
@@ -205,14 +223,15 @@ def p_inclusiveOrExpression(p):
 				print("Error! Cannot perform operation on character datatype!")
 				sys.exit()
 			elif (p[1].type=="int"):
-				p[0].type=="int"
+				p[0].type = "int"
 			else:
-				p[0].type=="float"
+				p[0].type = "float"
 		elif (p[1].type!=p[3].type):
 			#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
 			print("Datatype mismatch in inclusive OR expression, performing coercion!")
 			#mismatch has to mean int and float, hence coercion to float
-			p[0].type=="float"
+			p[0].type = "float"
+		threeAC.AddToTable(p[1],p[3],p[2])
 
 def p_exclusiveOrExpression(p):
 	'''exclusiveOrExpression : andExpression 
@@ -226,14 +245,15 @@ def p_exclusiveOrExpression(p):
 				print("Error! Cannot perform operation on character datatype!")
 				sys.exit()
 			elif (p[1].type=="int"):
-				p[0].type=="int"
+				p[0].type = "int"
 			else:
-				p[0].type=="float"
+				p[0].type = "float"
 		elif (p[1].type!=p[3].type):
 			#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
 			print("Datatype mismatch in XOR expression, performing coercion!")
 			#mismatch has to mean int and float, hence coercion to float
-			p[0].type=="float"
+			p[0].type = "float"
+		threeAC.AddToTable(p[1],p[3],p[2])
 
 def p_andExpression(p):
 	'''andExpression : equalityExpression 
@@ -247,14 +267,15 @@ def p_andExpression(p):
 				print("Error! Cannot perform operation on character datatype!")
 				sys.exit()
 			elif (p[1].type=="int"):
-				p[0].type=="int"
+				p[0].type = "int"
 			else:
-				p[0].type=="float"
+				p[0].type = "float"
 		elif (p[1].type!=p[3].type):
 			#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
 			print("Datatype mismatch in bitwise AND expression, performing coercion!")
 			#mismatch has to mean int and float, hence coercion to float
-			p[0].type=="float"
+			p[0].type = "float"
+		threeAC.AddToTable(p[1],p[3],p[2])
 
 def p_equalityExpression(p):
 	'''equalityExpression : relationalExpression 
@@ -269,14 +290,15 @@ def p_equalityExpression(p):
 				print("Error! Cannot perform operation on character datatype!")
 				sys.exit()
 			elif (p[1].type=="int"):
-				p[0].type=="int"
+				p[0].type = "int"
 			else:
-				p[0].type=="float"
+				p[0].type = "float"
 		elif (p[1].type!=p[3].type):
 			#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
 			print("Datatype mismatch in equality expression, performing coercion!")
 			#mismatch has to mean int and float, hence coercion to float
-			p[0].type=="float"
+			p[0].type = "float"
+		threeAC.AddToTable(p[1],p[3],p[2])
 		
 			
 def p_relationalExpression(p):
@@ -294,14 +316,15 @@ def p_relationalExpression(p):
 				print("Error! Cannot perform operation on character datatype!")
 				sys.exit()
 			elif (p[1].type=="int"):
-				p[0].type=="int"
+				p[0].type = "int"
 			else:
-				p[0].type=="float"
+				p[0].type = "float"
 		elif (p[1].type!=p[3].type):
 			#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
 			print("Datatype mismatch in relational expression, performing coercion!")
 			#mismatch has to mean int and float, hence coercion to float
-			p[0].type=="float"
+			p[0].type = "float"
+		threeAC.AddToTable(p[1].value,p[3].value,p[2])
 			
 def p_shiftExpression(p):
 	'''shiftExpression : additiveExpression
@@ -316,14 +339,15 @@ def p_shiftExpression(p):
 				print("Error! Cannot perform operation on character datatype!")
 				sys.exit()
 			elif (p[1].type=="int"):
-				p[0].type=="int"
+				p[0].type = "int"
 			else:
-				p[0].type=="float"
+				p[0].type = "float"
 		elif (p[1].type!=p[3].type):
 			#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
 			print("Datatype mismatch in shift expression, performing coercion!")
 			#mismatch has to mean int and float, hence coercion to float
-			p[0].type=="float"
+			p[0].type = "float"
+		threeAC.AddToTable(p[1],p[3],p[2])
 			
 def p_additiveExpression(p):
 	'''additiveExpression : multiplicativeExpression
@@ -338,15 +362,21 @@ def p_additiveExpression(p):
 				print("Error! Cannot perform operation on character datatype!")
 				sys.exit()
 			elif (p[1].type=="int"):
-				p[0].type=="int"
+				p[0].type="int"
+				print(p[0].type)
 			else:
-				p[0].type=="float"
+				p[0].type="float"
 		elif (p[1].type!=p[3].type):
 			#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
 			print("Datatype mismatch in additive expression, performing coercion!")
 			#mismatch has to mean int and float, hence coercion to float
-			p[0].type=="float"
-			
+			p[0].type = "float"
+		if(len(p)==4):
+			if p[2] == '+':
+				p[0]=threeAC.AddToTable(p[1],p[3],'+')
+			elif p[2] == '-':
+				p[0]=threeAC.AddToTable(p[1],p[3],'-')			
+
 def p_multiplicativeExpression(p):
 	'''multiplicativeExpression : castExpression
 			| multiplicativeExpression TIMES castExpression
@@ -361,14 +391,21 @@ def p_multiplicativeExpression(p):
 				print("Error! Cannot perform operation on character datatype!")
 				sys.exit()
 			elif (p[1].type=="int"):
-				p[0].type=="int"
+				p[0].type = "int"
 			else:
-				p[0].type=="float"
+				p[0].type = "float"
 		elif (p[1].type!=p[3].type):
 			#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
 			print("Datatype mismatch in multiplicative expression, performing coercion!")
 			#mismatch has to mean int and float, hence coercion to float
-			p[0].type=="float"
+			p[0].type = "float"
+		if(len(p)==4):
+			if p[2] == '*':
+				p[0]=threeAC.AddToTable(p[1],p[3],'*')	
+			elif p[2] == '/':
+				p[0]=threeAC.AddToTable(p[1],p[3],'/')
+			elif (p[1] == '(' and p[3] == ')'):
+				p[0]=p[2]
 
 def p_castExpression(p):
 	'''castExpression : unaryExpression
@@ -631,18 +668,46 @@ def p_StorageClassSpec(p):
 	p[0] = AST.Type(p[1])
 			
 def p_selectionStatement(p):
-	'''selectionStatement : IF LPAREN expression RPAREN statement
-			| IF LPAREN expression RPAREN statement ELSE statement
-			| SWITCH LPAREN expression RPAREN statement'''
-	if len(p)==8:
+	'''selectionStatement : IF LPAREN ifmark expression RPAREN statement endifmark 
+			| IF LPAREN ifelsemark expression RPAREN statement ELSE elsemark statement endifelsemark
+			| SWITCH LPAREN switchmark expression RPAREN statement endswitchmark'''
+	if len(p)==11:
 		p[0] = AST.IfStmt(p[3], p[5], p[7])
-	elif len(p) == 6:
+	elif len(p) == 8:
 		if (p[1] == "if"):
 			p[0] = AST.IfStmt(p[3], p[5])
 		else:
 			p[0] = AST.SwitchStmt(p[3], p[5])
 
-		
+def p_ifmark(p):
+	'''ifmark : empty '''
+	threeAC.AddToTable('','',"if")
+
+def p_endifmark(p):
+	'''endifmark : empty '''
+	threeAC.AddToTable('','',"endif")
+
+def p_ifelsemark(p):
+	'''ifelsemark : empty '''
+	print("test")
+	threeAC.AddToTable('','',"ifelse")
+
+def p_elsemark(p):
+	'''elsemark : empty '''
+	threeAC.AddToTable('','',"else")
+
+def p_endifelsemark(p):
+	'''endifelsemark : empty '''
+	threeAC.AddToTable('','',"endifelse")
+
+def p_switchmark(p):
+	'''switchmark : empty '''
+	threeAC.AddToTable('','',"switch")
+
+def p_endswitchmark(p):
+	'''endswitchmark : empty '''
+	threeAC.AddToTable('','',"endswitch")
+
 def p_jumpStatement(p):
 	'''jumpStatement : BREAK TERMINAL
 			| CONTINUE TERMINAL
@@ -674,4 +739,7 @@ if result is not None:
 	with open("AST.txt",'w') as f:
 		f.write(str(result))
 
-main_table.print_table()
+threeAC.ThreeAddressCode()
+threeAC.OPT()
+
+#main_table.print_table()
