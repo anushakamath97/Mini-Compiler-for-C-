@@ -7,17 +7,18 @@ import AST
 #https://codearea.in/generate-three-address-code-quadruple-and-triple-using-lex-and-yacc/
 #https://github.com/tushcoder/ThreeAddressCode
 class threeAC:
-	temp=1
-	ind = 0
-	labelcount = 1
-	incode = namedtuple("incode", "op1 op2 opr")
-	code =[]
-	if_idx=0
-	endif_idx=0
-	step=0
-	labels=[]
-	lc=0
-
+	def __init__(self):
+		self.temp=1
+		self.ind = 0
+		self.labelcount = 1
+		self.incode = namedtuple("incode", "op1 op2 opr")
+		self.code =[]
+		self.if_idx=0
+		self.endif_idx=0
+		self.step=0
+		self.labels=[]
+		self.lc=0
+		
 	def make_newlabel(self):
 		label = 'L_' + str(self.labelcount)
 		self.labelcount += 1
@@ -50,7 +51,6 @@ class threeAC:
 		self.ind+=1
 
 	def ThreeAddressCode(self):
-		print(self.code)
 		temp=self.temp
 		cnt=0
 		print("THREE ADDRESS CODE")
@@ -93,7 +93,11 @@ class threeAC:
 			else:
 				self.endif_idx+=1
 
-		condition = str(self.code[cnt+1].op1) + str(self.code[cnt+1].opr) + str(self.code[cnt+1].op2)
+		if self.code[cnt+1].op2 is not None:
+			condition = str(self.code[cnt+1].op1) + str(self.code[cnt+1].opr) + str(self.code[cnt+1].op2)
+		else:
+			condition = str(self.code[cnt+1].op1)
+		#print(condition)
 
 		self.step+=1
 		print("("+str(self.step)+") "+"<Evaluate " + condition+">")
@@ -127,7 +131,6 @@ class threeAC:
 		if(self.code[cnt].opr == "endif"):
 			return cnt
 		
- 		
 		if(self.code[cnt].opr != '='):			
 				self.step+=1
 				print("("+str(self.step)+") "+"t"+str(self.temp) +": = ",end='')
@@ -137,7 +140,10 @@ class threeAC:
 				self.step+=1
 				print("("+str(self.step)+") "+self.code[cnt].op1,end='')
 			else:
-				print(self.code[cnt].op1,end='')				
+				if self.code[cnt].opr == '':
+					print(self.code[cnt].op1)
+				else:
+					print(self.code[cnt].op1,end='')				
 		else:
 			self.step+=1
 			print("("+str(self.step)+") "+"t"+str(self.temp),end='')
@@ -145,11 +151,64 @@ class threeAC:
 
 		print(self.code[cnt].opr,end='')
 
-		if(str(self.code[cnt].op2).isalnum()):
+		if(self.code[cnt].op2 is not None and str(self.code[cnt].op2).isalnum()):
 			print(self.code[cnt].op2,end='')
-		else:
+		elif self.code[cnt].op2 is not None:
 			print("t"+str(self.temp),end='')
 			self.temp+=1
 		print("\n")
 		return 
 
+	#constant propagation	
+	def const_prop(self):
+		opcode = self.code
+		
+		const = {}
+
+		for i in range(len(opcode)):
+			if(opcode[i].op2 != ''):	
+				if(opcode[i].opr == "="):
+					const[opcode[i].op1] = opcode[i].op2
+
+			elif(opcode[i].opr == 'endif'): #or opcode[ctr].opr == 'switch'):
+				const = {}
+
+			if(opcode[i].opr != '='):
+				keys = const.keys()
+				if opcode[i].op1 in keys:
+					opcode[i]=opcode[i]._replace(op1 = const[opcode[i].op1])
+				if opcode[i].op2 in keys:
+					opcode[i]=opcode[i]._replace(op2 = const[opcode[i].op2])
+
+		self.code = opcode
+		self.temp=1
+		self.labelcount = 1
+		self.if_idx=0
+		self.endif_idx=0
+		self.step=0
+		self.labels=[]
+		self.lc=0
+		self.ThreeAddressCode()
+		return
+
+	#constant_folding
+	def const_fold(self):
+		opcode = self.code
+
+		for i in range(len(opcode)):
+			if opcode[i].opr != '=':
+				if isinstance(opcode[i].op1,int) or isinstance(opcode[i].op1,float):
+					if isinstance(opcode[i].op2,int) or isinstance(opcode[i].op2,float):
+						opcode[i] = opcode[i]._replace(op1 = eval(str(opcode[i].op1)+opcode[i].opr+str(opcode[i].op2)),op2 = None ,opr = '')
+						#print(opcode[i])
+		self.code = opcode
+		self.temp=1
+		self.labelcount = 1
+		self.if_idx=0
+		self.endif_idx=0
+		self.step=0
+		self.labels=[]
+		self.lc=0
+		self.ThreeAddressCode()
+		return
+					

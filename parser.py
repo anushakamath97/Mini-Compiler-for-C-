@@ -373,9 +373,9 @@ def p_additiveExpression(p):
 			p[0].type = "float"
 		if(len(p)==4):
 			if p[2] == '+':
-				p[0]=threeAC.AddToTable(p[1],p[3],'+')
+				threeAC.AddToTable(p[1],p[3],'+')
 			elif p[2] == '-':
-				p[0]=threeAC.AddToTable(p[1],p[3],'-')			
+				threeAC.AddToTable(p[1],p[3],'-')			
 
 def p_multiplicativeExpression(p):
 	'''multiplicativeExpression : castExpression
@@ -401,9 +401,9 @@ def p_multiplicativeExpression(p):
 			p[0].type = "float"
 		if(len(p)==4):
 			if p[2] == '*':
-				p[0]=threeAC.AddToTable(p[1],p[3],'*')	
+				threeAC.AddToTable(p[1],p[3],'*')	
 			elif p[2] == '/':
-				p[0]=threeAC.AddToTable(p[1],p[3],'/')
+				threeAC.AddToTable(p[1],p[3],'/')
 			elif (p[1] == '(' and p[3] == ')'):
 				p[0]=p[2]
 
@@ -740,5 +740,25 @@ if result is not None:
 		f.write(str(result))
 
 threeAC.ThreeAddressCode()
+
+
+print()			
+print("_______________________")
+print()	
+print("OPTIMIZED CODE")
+print("_______________________")
+print()
+
+print()
+print("AFTER CONSTANT PROPAGATION")
+print()
+
+threeAC.const_prop()
+
+print()
+print("AFTER CONSTANT FOLDING")
+print()
+
+threeAC.const_fold()
 
 #main_table.print_table()

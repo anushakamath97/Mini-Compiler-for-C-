@@ -15,16 +15,23 @@ int main()
 
 	//**c="hello";
 
-	d=a+b;
+	
 	m=5;
-	if(m==10)
-	{	b=10;
+
+	a = 20;
+	d = a + b;
+	if(m==10.5)
+	{	
+		b=10;
 		a=5;
-		d = a+b;
+		i=100;
+		d = a+b; 			//a+b*i+10;
+		//a = b;
 		if(i==5)
 			number = 20;
-		i=100;
+		
 	}
+
 	m=a+b;
 	/*else
 	{	int z;
