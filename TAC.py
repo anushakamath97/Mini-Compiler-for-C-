@@ -1,5 +1,6 @@
 from collections import namedtuple
 import AST
+import copy
 
 # s=open('cpp_code.cpp','r').read()
 # print(s)
@@ -7,17 +8,18 @@ import AST
 #https://codearea.in/generate-three-address-code-quadruple-and-triple-using-lex-and-yacc/
 #https://github.com/tushcoder/ThreeAddressCode
 class threeAC:
-	temp=1
-	ind = 0
-	labelcount = 1
-	incode = namedtuple("incode", "op1 op2 opr")
-	code =[]
-	if_idx=0
-	endif_idx=0
-	step=0
-	labels=[]
-	lc=0
-	opcode = []
+	def __init__(self):
+		self.temp=1
+		self.ind = 0
+		self.labelcount = 1
+		self.incode = namedtuple("incode", "op1 op2 opr")
+		self.code =[]
+		self.if_idx=0
+		self.endif_idx=0
+		self.step=0
+		self.labels=[]
+		self.lc=0
+		
 	def make_newlabel(self):
 		label = 'L_' + str(self.labelcount)
 		self.labelcount += 1
@@ -50,7 +52,6 @@ class threeAC:
 		self.ind+=1
 
 	def ThreeAddressCode(self):
-		print(self.code)
 		temp=self.temp
 		cnt=0
 		print("THREE ADDRESS CODE")
@@ -93,7 +94,11 @@ class threeAC:
 			else:
 				self.endif_idx+=1
 
-		condition = str(self.code[cnt+1].op1) + str(self.code[cnt+1].opr) + str(self.code[cnt+1].op2)
+		if self.code[cnt+1].op2 is not None:
+			condition = str(self.code[cnt+1].op1) + str(self.code[cnt+1].opr) + str(self.code[cnt+1].op2)
+		else:
+			condition = str(self.code[cnt+1].op1)
+		#print(condition)
 
 		self.step+=1
 		print("("+str(self.step)+") "+"<Evaluate " + condition+">")
@@ -127,7 +132,6 @@ class threeAC:
 		if(self.code[cnt].opr == "endif"):
 			return cnt
 		
- 		
 		if(self.code[cnt].opr != '='):			
 				self.step+=1
 				print("("+str(self.step)+") "+"t"+str(self.temp) +": = ",end='')
@@ -137,7 +141,10 @@ class threeAC:
 				self.step+=1
 				print("("+str(self.step)+") "+self.code[cnt].op1,end='')
 			else:
-				print(self.code[cnt].op1,end='')				
+				if self.code[cnt].opr == '':
+					print(self.code[cnt].op1)
+				else:
+					print(self.code[cnt].op1,end='')				
 		else:
 			self.step+=1
 			print("("+str(self.step)+") "+"t"+str(self.temp),end='')
@@ -145,63 +152,114 @@ class threeAC:
 
 		print(self.code[cnt].opr,end='')
 
-		if(str(self.code[cnt].op2).isalnum()):
+		if(self.code[cnt].op2 is not None and str(self.code[cnt].op2).isalnum()):
 			print(self.code[cnt].op2,end='')
-		else:
+		elif self.code[cnt].op2 is not None:
 			print("t"+str(self.temp),end='')
 			self.temp+=1
 		print("\n")
 		return 
 
 	#constant propagation	
-	def OPT(self):
-		self.opcode = list(self.code)
-		#print(self.opcode)
-		ctr=0
-		while(self.opcode[ctr] is not None):
-			print(self.opcode[ctr])
-			if(ctr<(len(self.opcode)-1)):
-				ctr+=1
-			else:
-				break
-		print()			
-		print("_______________________")
-		print()	
-		print("OPTIMIZED CODE")
-		print("_______________________")
-		print()
-		ctr=0
-		if_flag=0
-		while(self.opcode[ctr] is not None):
-			if(self.opcode[ctr].op2 != ''):	
-				if(self.opcode[ctr].opr == "="):	
-					var=self.opcode[ctr].op1
-					const=self.opcode[ctr].op2
-					print("var="+str(var))
-					print("const="+str(const))
-					
-					ctr2=ctr+1
-					if(ctr2<(len(self.opcode)-1)):	
-						while(self.opcode[ctr2] is not None):
-							if(self.opcode[ctr2].op1 == var and self.opcode[ctr2].opr != "="):
-								self.opcode[ctr2]=self.opcode[ctr2]._replace(op1 = const)
-							if(self.opcode[ctr2].op2 == var and self.opcode[ctr2].opr != "="):
-								self.opcode[ctr2]=self.opcode[ctr2]._replace(op2 = const)
-							if(ctr2<(len(self.opcode)-1)):
-								ctr2+=1
-							else: 
-								break
+	def const_prop(self):
+		opcode = self.code
+		
+		const = {}
 
-			if(ctr<(len(self.opcode)-1)):
-				ctr+=1
-			else:
-				break	
-			
-		#print(self.code)	
-		ctr=0
-		while(self.opcode[ctr] is not None):
-			print(self.opcode[ctr])
-			if(ctr<(len(self.opcode)-1)):
-				ctr+=1
-			else:
-				break
+		for i in range(len(opcode)):
+			if(opcode[i].op2 != ''):	
+				if(opcode[i].opr == "="):
+					const[opcode[i].op1] = opcode[i].op2
+
+			elif(opcode[i].opr == 'endif'): #or opcode[ctr].opr == 'switch'):
+				const = {}
+
+			if(opcode[i].opr != '='):
+				keys = const.keys()
+				if opcode[i].op1 in keys:
+					opcode[i]=opcode[i]._replace(op1 = const[opcode[i].op1])
+				if opcode[i].op2 in keys:
+					opcode[i]=opcode[i]._replace(op2 = const[opcode[i].op2])
+					
+		self.code = opcode
+		self.temp=1
+		self.labelcount = 1
+		self.if_idx=0
+		self.endif_idx=0
+		self.step=0
+		self.labels=[]
+		self.lc=0
+		self.ThreeAddressCode()
+		return
+
+
+	#constant_folding
+	def const_fold(self):
+		opcode = self.code
+
+		for i in range(len(opcode)):
+			if opcode[i].opr != '=':
+				if isinstance(opcode[i].op1,int) or isinstance(opcode[i].op1,float):
+					if isinstance(opcode[i].op2,int) or isinstance(opcode[i].op2,float):
+						opcode[i] = opcode[i]._replace(op1 = eval(str(opcode[i].op1)+opcode[i].opr+str(opcode[i].op2)),op2 = None ,opr = '')
+						#print(opcode[i])
+		self.code = opcode
+		self.temp=1
+		self.labelcount = 1
+		self.if_idx=0
+		self.endif_idx=0
+		self.step=0
+		self.labels=[]
+		self.lc=0
+		self.ThreeAddressCode()
+		return
+		
+	#dead code elimination
+	def dead_code(self):
+		opcode = copy.deepcopy(self.code)
+		
+		var = {}
+		keys = var.keys()
+		values=var.values()
+		for i in range(len(opcode)):
+			if(opcode[i].op2 != ''):	
+				if(opcode[i].opr == "="):
+					var[opcode[i].op1] = 0
+					
+							
+		print(keys)
+		print(values)				
+					
+		for i in range(len(opcode)):
+			if(opcode[i].opr != '='):			
+				#print(opcode[i].op1)
+				#print(opcode[i].op2)
+				if opcode[i].op1 in keys:
+					var[opcode[i].op1]+=1;
+				if opcode[i].op2 in keys:
+					var[opcode[i].op2]+=1;
+					
+		print(keys)
+		print(values)	
+	
+		for i in range(len(opcode)):
+			if(opcode[i].op2 != ''):	
+				if(opcode[i].opr == "="):
+					if var[opcode[i].op1]==0:
+						print(var[opcode[i].op1])
+						opcode[i] = opcode[i]._replace(op1 = "DEAD",op2 = "CODE" ,opr = " ")
+						#del opcode[i]
+						#self.ind-=1
+									
+	
+		self.code = opcode
+		self.temp=1
+		self.labelcount = 1
+		self.if_idx=0
+		self.endif_idx=0
+		self.step=0
+		self.labels=[]
+		self.lc=0
+		self.ThreeAddressCode()
+		return
+	

@@ -64,10 +64,10 @@ def p_assignmentExpression(p):
 				p[0].type=p[1].type
 		if(p[2] == '='):
 			if(p[3] is not None):
-				if(p[3].expr_type == "constant"):
+				if(p[3].expr_type == "constant" or p[3].expr_type == "id"):
 					threeAC.AddToTable(p[1],p[3],'=')
-			else:
-				threeAC.AddToTable(p[1],'','=')
+				else:
+					threeAC.AddToTable(p[1],'','=')
 	
 def p_unaryExpression(p):
 	'''unaryExpression : postfixExpression 
@@ -373,9 +373,9 @@ def p_additiveExpression(p):
 			p[0].type = "float"
 		if(len(p)==4):
 			if p[2] == '+':
-				p[0]=threeAC.AddToTable(p[1],p[3],'+')
+				threeAC.AddToTable(p[1],p[3],'+')
 			elif p[2] == '-':
-				p[0]=threeAC.AddToTable(p[1],p[3],'-')			
+				threeAC.AddToTable(p[1],p[3],'-')			
 
 def p_multiplicativeExpression(p):
 	'''multiplicativeExpression : castExpression
@@ -401,9 +401,9 @@ def p_multiplicativeExpression(p):
 			p[0].type = "float"
 		if(len(p)==4):
 			if p[2] == '*':
-				p[0]=threeAC.AddToTable(p[1],p[3],'*')	
+				threeAC.AddToTable(p[1],p[3],'*')	
 			elif p[2] == '/':
-				p[0]=threeAC.AddToTable(p[1],p[3],'/')
+				threeAC.AddToTable(p[1],p[3],'/')
 			elif (p[1] == '(' and p[3] == ')'):
 				p[0]=p[2]
 
@@ -740,6 +740,33 @@ if result is not None:
 		f.write(str(result))
 
 threeAC.ThreeAddressCode()
-threeAC.OPT()
+
+
+print()			
+print("_______________________")
+print()	
+print("OPTIMIZED CODE")
+print("_______________________")
+print()
+
+print()
+print("AFTER CONSTANT AND COPY PROPAGATION")
+print()
+
+threeAC.const_prop()
+
+
+print()
+print("AFTER CONSTANT FOLDING")
+print()
+
+threeAC.const_fold()
+
+print()
+print("AFTER DEAD CODE ELIMINATION")
+print()
+
+threeAC.dead_code()
+
 
 #main_table.print_table()
