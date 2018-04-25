@@ -103,6 +103,7 @@ def p_markid(p):
 	'''markid : identifier'''
 	p[0] = AST.Expr("id",operand1=p[1],constType=p[1].type)
 
+
 def p_markstr(p):
 	'''markstr : '''
 
@@ -463,20 +464,30 @@ def p_caseList(p):
 	if len(p) == 6:
 		p[1].add_case(p[3], p[5])
 		p[0] = p[1]
+		threeAC.AddToTable('','','break')
 	else:
-        	p[0] = AST.Case()
+		p[0] = AST.Case()
 
 def p_default(p):
-	'''default : DEFAULT COLON statement	
+	'''default : DEFAULT defaultmark COLON statement enddefault	
 		| empty '''
 	if(len(p)==4):
 		p[0] = AST.CaseDefault(p[3])
 	else:
 		p[0]=None
 			
+def p_defaultmark(p):
+	'''defaultmark : empty '''
+	threeAC.AddToTable('','','Default')
+
+def p_enddefault(p):
+	'''enddefault : empty '''
+	threeAC.AddToTable('','','EndDefault')
+
 def p_constantExpression(p):
 	'''constantExpression : conditionalExpression '''
 	p[0]=p[1]
+	threeAC.AddToTable(p[1],'',"case")
 
 def p_expressionStatement(p):
 	'''expressionStatement : expression TERMINAL
@@ -543,7 +554,6 @@ def p_initDecList(p):
 	else:
 		p[1].add_identifier(p[4])
 		p[0] = p[1]
-	
 
 def p_markDec(p):
 	'''markDec : empty '''
@@ -566,6 +576,9 @@ def p_initDec(p):
 	if len(p)==4:
 		p[1].add_value(p[3])
 	p[0] = p[1]
+	if(p[1].value is not None):
+		threeAC.AddToTable(p[1].id,p[1].value.operand1,'=')
+
 
 def p_declarator(p):
 	'''declarator : pointerList directDec'''
@@ -645,7 +658,10 @@ def p_identifier(p):
 		else:
 			print("Variable undeclared or outOfScope!")
 			sys.exit()
-		
+	if(threeAC.switch_cond==1):
+		threeAC.AddToTable(p[1],'',"id")
+		threeAC.switch_cond=0
+	
 	#remember while adding to symbol table make changes in directDec for array type
 
 def p_decSpec(p):
@@ -669,39 +685,32 @@ def p_StorageClassSpec(p):
 			
 def p_selectionStatement(p):
 	'''selectionStatement : IF LPAREN ifmark expression RPAREN statement endifmark 
-			| IF LPAREN ifelsemark expression RPAREN statement ELSE elsemark statement endifelsemark
+			| IF LPAREN ifmark expression RPAREN statement endifmark ELSE elsemark statement
 			| SWITCH LPAREN switchmark expression RPAREN statement endswitchmark'''
 	if len(p)==11:
-		p[0] = AST.IfStmt(p[3], p[5], p[7])
+		p[0] = AST.IfStmt(p[4], p[6], p[10])
+		threeAC.AddToTable('','',"endelse")
 	elif len(p) == 8:
 		if (p[1] == "if"):
-			p[0] = AST.IfStmt(p[3], p[5])
+			p[0] = AST.IfStmt(p[4], p[6])
 		else:
-			p[0] = AST.SwitchStmt(p[3], p[5])
+			p[0] = AST.SwitchStmt(p[4], p[6])
 
 def p_ifmark(p):
 	'''ifmark : empty '''
 	threeAC.AddToTable('','',"if")
-
+		
 def p_endifmark(p):
 	'''endifmark : empty '''
 	threeAC.AddToTable('','',"endif")
-
-def p_ifelsemark(p):
-	'''ifelsemark : empty '''
-	print("test")
-	threeAC.AddToTable('','',"ifelse")
 
 def p_elsemark(p):
 	'''elsemark : empty '''
 	threeAC.AddToTable('','',"else")
 
-def p_endifelsemark(p):
-	'''endifelsemark : empty '''
-	threeAC.AddToTable('','',"endifelse")
-
 def p_switchmark(p):
 	'''switchmark : empty '''
+	threeAC.switch_cond=1
 	threeAC.AddToTable('','',"switch")
 
 def p_endswitchmark(p):
@@ -767,6 +776,5 @@ print("AFTER DEAD CODE ELIMINATION")
 print()
 
 threeAC.dead_code()
-
 
 #main_table.print_table()
