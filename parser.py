@@ -103,6 +103,7 @@ def p_markid(p):
 	'''markid : identifier'''
 	p[0] = AST.Expr("id",operand1=p[1],constType=p[1].type)
 
+
 def p_markstr(p):
 	'''markstr : '''
 
@@ -468,14 +469,21 @@ def p_caseList(p):
 		p[0] = AST.Case()
 
 def p_default(p):
-	'''default : DEFAULT COLON statement	
+	'''default : DEFAULT defaultmark COLON statement enddefault	
 		| empty '''
 	if(len(p)==4):
 		p[0] = AST.CaseDefault(p[3])
-		threeAC.AddToTable('','','Default')
 	else:
 		p[0]=None
 			
+def p_defaultmark(p):
+	'''defaultmark : empty '''
+	threeAC.AddToTable('','','Default')
+
+def p_enddefault(p):
+	'''enddefault : empty '''
+	threeAC.AddToTable('','','EndDefault')
+
 def p_constantExpression(p):
 	'''constantExpression : conditionalExpression '''
 	p[0]=p[1]
@@ -650,7 +658,10 @@ def p_identifier(p):
 		else:
 			print("Variable undeclared or outOfScope!")
 			sys.exit()
-		
+	if(threeAC.switch_cond==1):
+		threeAC.AddToTable(p[1],'',"id")
+		threeAC.switch_cond=0
+	
 	#remember while adding to symbol table make changes in directDec for array type
 
 def p_decSpec(p):
@@ -699,6 +710,7 @@ def p_elsemark(p):
 
 def p_switchmark(p):
 	'''switchmark : empty '''
+	threeAC.switch_cond=1
 	threeAC.AddToTable('','',"switch")
 
 def p_endswitchmark(p):

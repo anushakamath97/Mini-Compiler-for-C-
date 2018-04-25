@@ -21,6 +21,7 @@ class threeAC:
 		self.lc=0
 		self.if_count=0
 		self.else_count=0
+		self.switch_cond=0
 		
 	def make_newlabel(self):
 		label = 'L_' + str(self.labelcount)
@@ -57,7 +58,7 @@ class threeAC:
 		self.ind+=1
 
 	def ThreeAddressCode(self):
-		# print(self.code)
+		print(self.code)
 		temp=self.temp
 		cnt=0
 		print("THREE ADDRESS CODE")
@@ -93,17 +94,25 @@ class threeAC:
 				if(cnt-switch_idx == 2):	
 					if(condition.op2!=''):
 						print("("+str(self.step)+") "+"if " + str(condition.op1) + str(condition.opr) + str(condition.op2) + "==" + str(self.code[cnt].op1) + ":")
-					elif(self.code[cnt].op2==''):
-						print("("+str(self.step)+") "+"if " + str(condition.op1) + "==" + str(self.code[cnt+1].op1) + ":")
+					elif(condition.opr=="id"):
+						print("("+str(self.step)+") "+"if " + str(condition.op1) + "==" + str(self.code[cnt].op1) + ":")
 				else:
-					if(condition.op2==''):
+					if(condition.op2!=''):
 						print("("+str(self.step)+") "+"else if " + str(condition.op1) + str(condition.opr) + str(condition.op2) + "==" + str(self.code[cnt].op1) + ":")
-					elif(self.code[cnt].op2==''):
-						print("("+str(self.step)+") "+"else if " + str(condition.op1) + "==" + str(self.code[cnt+1].op1) + ":")
+					elif(condition.opr=="id"):
+						print("("+str(self.step)+") "+"else if " + str(condition.op1) + "==" + str(self.code[cnt].op1) + ":")
+				cnt+=1
+			elif(self.code[cnt].opr=="Default"):
+				print("("+str(self.step)+") "+"else:")
 				cnt+=1
 			else:
-				while(self.code[cnt].opr!="break"):
-					self.ThreeAddressCode_expr(cnt)
+				while(1):
+					if(self.code[cnt].opr=="break"):
+						break
+					elif(self.code[cnt].opr=="EndDefault"):
+						break
+					else:	
+						self.ThreeAddressCode_expr(cnt)
 					cnt+=1
 				cnt+=1
 
