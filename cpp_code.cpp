@@ -15,30 +15,42 @@ int main()
 
 	//**c="hello";
 
-	d=a+b;
+	
 	m=5;
-	if(a==10)
-	{	b=10;
+
+	a = 20;
+	d = a + b;
+	if(m==10.5)
+	{	
+		b=10;
 		a=5;
-		d = a+b;
-		if(i==5)
-			number = 20;
-			
 		i=100;
-		//b=1;
+		//d = a+b; 			//a+b*i+10;
+		//a = b;
+		if(i==5){
+			number = 20;
+		}
+		if(number==20){	
+			a=b;
+			b=6;
+		}
+		a=10;
 	}
-	m=a+b;
-	/*else
+	else
 	{	int z;
-		--i;
-	}*/
-/*   	switch(number)
-	{
-		case 1: { float q; p[1]=20; break;}
-		case 2: { i++; break;	}
-		case 3: { x *= 100; break;	}
-		default : factorial = ((++i) - (2*number));
+		z=10;
+		z=z+1;
 	}
-*/    
+
+	m=a+b;
+   	switch(m+a)
+	{
+		case 'A': { float q;a=10; break;}
+		case 4: { float w;b=20; break;}
+		/*case 2: { i++; break;	}
+		case 3: { x *= 100; break;	}
+		default : factorial = ((++i) - (2*number));*/
+	}
+    
 	return 0;
 }

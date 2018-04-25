@@ -7,30 +7,37 @@ import AST
 #https://codearea.in/generate-three-address-code-quadruple-and-triple-using-lex-and-yacc/
 #https://github.com/tushcoder/ThreeAddressCode
 class threeAC:
-	temp=1
-	ind = 0
-	labelcount = 1
-	incode = namedtuple("incode", "op1 op2 opr")
-	code =[]
-	if_idx=0
-	endif_idx=0
-	step=0
-	labels=[]
-	lc=0
-	opcode = []
+	def __init__(self):
+		self.temp=1
+		self.ind = 0
+		self.labelcount = 1
+		self.incode = namedtuple("incode", "op1 op2 opr")
+		self.code =[]
+		self.if_idx=0
+		self.endif_idx=0
+		self.endelse_idx=0
+		self.step=0
+		self.labels=[]
+		self.lc=0
+		self.if_count=0
+		self.else_count=0
+		
 	def make_newlabel(self):
 		label = 'L_' + str(self.labelcount)
 		self.labelcount += 1
 		return label
 
 
-	def AddToTable(self,opd1,opd2,opr):
+	def AddToTable(self,opd1,opd2,opr):			
 		if(opd1 is not None):
 			if(isinstance(opd1,AST.Expr)):
 				# if(opd1.expr_type == "binop" or opd2 == ''):
 				# 	op1 = opd1.operand1.operand1.id
 				# else:
-				op1 = opd1.operand1.id
+				if(opr == "case"):
+					op1 = opd1.operand1
+				else:
+					op1 = opd1.operand1.id
 			else:
 				op1 = opd1
 
@@ -43,63 +50,125 @@ class threeAC:
 			else:
 				#print(opd2)
 				op2 = opd2
-		if(op1 is not None and op2 is not None):
-			self.code.append(self.incode(op1 = op1,op2 = op2,opr=opr))
+
+		self.code.append(self.incode(op1 = op1,op2 = op2,opr=opr))
 		# if(self.code[self.ind].opr != '='):
 		# 	self.temp += 1
 		self.ind+=1
 
 	def ThreeAddressCode(self):
-		#print(self.code)
+		# print(self.code)
 		temp=self.temp
 		cnt=0
 		print("THREE ADDRESS CODE")
 		while(cnt<self.ind):
 			if(self.code[cnt].opr == "switch"):
-				self.ThreeAddressCode_switch(cnt)
-				break
+				cnt=self.ThreeAddressCode_switch(cnt)
 			elif(self.code[cnt].opr == "if"):
 				cnt=self.ThreeAddressCode_if(cnt)-1
+				# print("ifmain=",str(cnt))
 			elif(self.code[cnt].opr == "endif"):
-				print("("+str(self.step)+") "+ self.labels[self.lc-1] + ":")	
-			elif(self.code[cnt].opr == "ifelse"):
-				self.ThreeAddressCode_ifelse(cnt)
+				self.if_count-=1
+				# print("endifmain=",str(cnt))
+				#print("("+str(self.step)+") "+ self.labels[self.lc-1] + ":")	
+			elif(self.code[cnt].opr == "else"):
+				cnt=self.ThreeAddressCode_else(cnt)
+				# print("elsemain=",str(cnt))
 			elif(self.code[cnt].opr not in ["==","<=",">=",">","<"]):
 				self.ThreeAddressCode_expr(cnt)
+				# print("exprmain=",str(cnt))
 			cnt+=1
+			# print("main=",str(cnt))
 		self.temp+=1
 		print("\n")
 
 	def ThreeAddressCode_switch(self,cnt):
-		index+=1
-		print("if")
-		return
+		switch_idx = cnt
+		cnt+=1
+		condition = self.code[cnt]
+		cnt+=1
+		while(self.code[cnt].opr!="endswitch"):
+			if(self.code[cnt].opr=="case"):
+				self.step+=1	
+				if(cnt-switch_idx == 2):	
+					if(condition.op2!=''):
+						print("("+str(self.step)+") "+"if " + str(condition.op1) + str(condition.opr) + str(condition.op2) + "==" + str(self.code[cnt].op1) + ":")
+					elif(self.code[cnt].op2==''):
+						print("("+str(self.step)+") "+"if " + str(condition.op1) + "==" + str(self.code[cnt+1].op1) + ":")
+				else:
+					if(condition.op2==''):
+						print("("+str(self.step)+") "+"else if " + str(condition.op1) + str(condition.opr) + str(condition.op2) + "==" + str(self.code[cnt].op1) + ":")
+					elif(self.code[cnt].op2==''):
+						print("("+str(self.step)+") "+"else if " + str(condition.op1) + "==" + str(self.code[cnt+1].op1) + ":")
+				cnt+=1
+			else:
+				while(self.code[cnt].opr!="break"):
+					self.ThreeAddressCode_expr(cnt)
+					cnt+=1
+				cnt+=1
 
-	def ThreeAddressCode_ifelse(self,cnt):
-		#cnt=self.ThreeAddressCode_if(cnt)
+		return cnt
 
-		return
+	def ThreeAddressCode_else(self,cnt):
+		flag=0
+		self.else_count+=1
+		if(self.endelse_idx!=0):
+			self.endelse_idx=[q for q, n in enumerate(list(reversed(self.code[:(len(self.code)-self.endelse_idx-1)]))) if n.opr == "endelse"][0]
+		else:
+			self.endelse_idx=[q for q, n in enumerate(list(reversed(self.code[:(len(self.code)-self.endelse_idx)]))) if n.opr == "endelse"][0]
+
+		cnt+=1		
+		# print("elsefunc=",str(cnt))
+
+		while(cnt<(len(self.code)-self.endelse_idx-1)):		
+			# print("elsewhile=",str(cnt))
+			if(self.code[cnt].opr == "switch"):
+				self.ThreeAddressCode_switch(cnt)
+			elif(self.code[cnt].opr == "if"):
+				cnt=self.ThreeAddressCode_if(cnt)
+			else:
+				self.ThreeAddressCode_expr(cnt)
+				cnt+=1
+			if(self.code[cnt].opr == "endelse"):
+				return cnt
+
 
 	def ThreeAddressCode_if(self,cnt):
-		self.labels.append(self.make_newlabel())
-		flag=0
-		for i in reversed(self.code):
-			for j in i:
-				if(j == "endif"):	
-			 		flag=1
-			 		break
-			if(flag==1):
-				break
-			else:
-				self.endif_idx+=1
+		# print("iffunc=",str(cnt))
 
-		condition = str(self.code[cnt+1].op1) + str(self.code[cnt+1].opr) + str(self.code[cnt+1].op2)
+		self.labels.append(self.make_newlabel())
+		self.if_count+=1
+		#print(list(reversed(self.code[:(len(self.code)-self.endif_idx-1)])))
+		prev_endif=self.endif_idx+1
+		if(self.endif_idx!=0):
+			self.endif_idx=[q for q, n in enumerate(list(reversed(self.code[:(len(self.code)-self.endif_idx-1)]))) if n.opr == "endif"][0]
+		else:
+			self.endif_idx=[q for q, n in enumerate(list(reversed(self.code[:(len(self.code)-self.endif_idx)]))) if n.opr == "endif"][0]
+			
+		# for i in reversed(self.code):
+		# 	for j in i:
+		# 		if(j == "endif"):	
+		# 	 		flag=1
+		# 	 		break
+		# 	if(flag==1):
+		# 		break
+		# 	else:
+		# 		self.endif_idx+=1
+
+		if self.code[cnt+1].op2 is not None:
+			condition = str(self.code[cnt+1].op1) + str(self.code[cnt+1].opr) + str(self.code[cnt+1].op2)
+		else:
+			condition = str(self.code[cnt+1].op1)
+		#print(condition)
 
 		self.step+=1
 		print("("+str(self.step)+") "+"<Evaluate " + condition+">")
 		self.step+=1
+		if(self.code[cnt-1].opr == "endif"):
+			self.lc+=1
 		print("("+str(self.step)+") "+"if_False " + condition + " goto " + self.labels[self.lc])
 		self.lc+=1
+		# print(self.lc)
 		# if(eval(cond)):
 		# 	execCnt=cnt-stmtCount			
 		# 	while(execCnt<cnt):
@@ -107,27 +176,44 @@ class threeAC:
 		# 		execCnt+=1
 		
 		cnt=cnt+2
-		while(cnt<(len(self.code)-self.endif_idx-1)):
+		while(cnt<(len(self.code)-prev_endif-self.endif_idx-1)):
+			# print("ifwhile=",str(cnt))
 			x=self.ThreeAddressCode_expr(cnt)
 			if x is not None:
 				cnt=x+1
 			else:	
 				cnt+=1
-		if(cnt==(len(self.code)-self.endif_idx-1)):	
-			self.step+=1
-			print("("+str(self.step)+") "+self.labels[self.lc-1] + ":")
-			self.lc-=1
+		# print("outifwhile=",str(cnt))
+
+		# print(len(self.code),prev_endif,self.endif_idx)
+		# if(cnt==(len(self.code)-self.endif_idx-1)):	
+		# 	self.step+=1
+		# 	print("("+str(self.step)+") "+self.labels[self.lc-1] + ":")
+		# 	self.lc-=1
 		return cnt
 
 	def ThreeAddressCode_expr(self,cnt):
+		# print(self.code[cnt])
+		# print("expr")
 		if(self.code[cnt].opr == "switch"):
-			self.ThreeAddressCode_switch(cnt)
-		elif(self.code[cnt].opr == "if"):
+			cnt=self.ThreeAddressCode_switch(cnt)
+		if(self.code[cnt].opr == "if"):
 			cnt=self.ThreeAddressCode_if(cnt)
+			# print("expr_if"+str(cnt))
+		if(self.code[cnt].opr == "else"):
+			cnt=self.ThreeAddressCode_else(cnt)	
 		if(self.code[cnt].opr == "endif"):
+			self.if_count-=1
+			self.lc-=1
+			if(self.if_count == self.else_count):
+				self.lc-=1
+			# print("endif_expr"+str(cnt))
+			print("("+str(self.step)+") "+ self.labels[self.lc] + ":")	
 			return cnt
-		
- 		
+		elif(self.code[cnt].opr == "endelse"):
+				return cnt
+		# print("exprfunc=",str(cnt))
+	
 		if(self.code[cnt].opr != '='):			
 				self.step+=1
 				print("("+str(self.step)+") "+"t"+str(self.temp) +": = ",end='')
@@ -137,7 +223,10 @@ class threeAC:
 				self.step+=1
 				print("("+str(self.step)+") "+self.code[cnt].op1,end='')
 			else:
-				print(self.code[cnt].op1,end='')				
+				if self.code[cnt].opr == '':
+					print(self.code[cnt].op1)
+				else:
+					print(self.code[cnt].op1,end='')				
 		else:
 			self.step+=1
 			print("("+str(self.step)+") "+"t"+str(self.temp),end='')
@@ -145,51 +234,64 @@ class threeAC:
 
 		print(self.code[cnt].opr,end='')
 
-		if(str(self.code[cnt].op2).isalnum()):
+		if(self.code[cnt].op2 is not None and str(self.code[cnt].op2).isalnum()):
 			print(self.code[cnt].op2,end='')
-		else:
+		elif self.code[cnt].op2 is not None:
 			print("t"+str(self.temp),end='')
 			self.temp+=1
 		print("\n")
 		return 
 
 	#constant propagation	
-	def OPT(self):
-		self.opcode = list(self.code)
-		print(self.opcode)
-		print("OPTIMIZED CODE")
-		ctr=0
-		if_flag=0
-		while(self.opcode[ctr] is not None):
-			if(self.opcode[ctr].op2 != ''):	
-				if(self.opcode[ctr].opr == "="):	
-					var=self.opcode[ctr].op1
-					const=self.opcode[ctr].op2
-					print("var="+str(var))
-					print("const="+str(const))
-					
-					ctr2=ctr+1
-					if(ctr2<(len(self.opcode)-1)):	
-						while(self.opcode[ctr2] is not None):
-							if(self.opcode[ctr2].op1 == var):
-								self.opcode[ctr2]=self.opcode[ctr2]._replace(op1 = const)
-							if(self.opcode[ctr2].op2 == var):
-								self.opcode[ctr2]=self.opcode[ctr2]._replace(op2 = const)
-							if(ctr2<(len(self.opcode)-1)):
-								ctr2+=1
-							else: 
-								break
+	def const_prop(self):
+		opcode = self.code
+		
+		const = {}
 
-			if(ctr<(len(self.opcode)-1)):
-				ctr+=1
-			else:
-				break	
-			
-		print(self.code)	
-		ctr=0
-		while(self.opcode[ctr] is not None):
-			print(self.opcode[ctr])
-			if(ctr<(len(self.opcode)-1)):
-				ctr+=1
-			else:
-				break
+		for i in range(len(opcode)):
+			if(opcode[i].op2 != ''):	
+				if(opcode[i].opr == "="):
+					const[opcode[i].op1] = opcode[i].op2
+
+			elif(opcode[i].opr == 'endif'): #or opcode[ctr].opr == 'switch'):
+				const = {}
+
+			if(opcode[i].opr != '='):
+				keys = const.keys()
+				if opcode[i].op1 in keys:
+					opcode[i]=opcode[i]._replace(op1 = const[opcode[i].op1])
+				if opcode[i].op2 in keys:
+					opcode[i]=opcode[i]._replace(op2 = const[opcode[i].op2])
+
+		self.code = opcode
+		self.temp=1
+		self.labelcount = 1
+		self.if_idx=0
+		self.endif_idx=0
+		self.step=0
+		self.labels=[]
+		self.lc=0
+		self.ThreeAddressCode()
+		return
+
+	#constant_folding
+	def const_fold(self):
+		opcode = self.code
+
+		for i in range(len(opcode)):
+			if opcode[i].opr != '=':
+				if isinstance(opcode[i].op1,int) or isinstance(opcode[i].op1,float):
+					if isinstance(opcode[i].op2,int) or isinstance(opcode[i].op2,float):
+						opcode[i] = opcode[i]._replace(op1 = eval(str(opcode[i].op1)+opcode[i].opr+str(opcode[i].op2)),op2 = None ,opr = '')
+						#print(opcode[i])
+		self.code = opcode
+		self.temp=1
+		self.labelcount = 1
+		self.if_idx=0
+		self.endif_idx=0
+		self.step=0
+		self.labels=[]
+		self.lc=0
+		self.ThreeAddressCode()
+		return
+					
