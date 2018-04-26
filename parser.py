@@ -62,12 +62,16 @@ def p_assignmentExpression(p):
 				#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
 				#mismatch has to mean int and float, hence coercion to float
 				p[0].type=p[1].type
-		if(p[2] == '='):
 			if(p[3] is not None):
-				if(p[3].expr_type == "constant"):
-					threeAC.AddToTable(p[1],p[3],'=')
-			else:
-				threeAC.AddToTable(p[1],'','=')
+				if(p[3].expr_type == "constant" or p[3].expr_type == "id"):
+					if(len(p[2])==2):
+						threeAC.AddToTable(p[1],p[3],p[2][0])
+						threeAC.AddToTable(p[1],'',p[2][1])
+					else:
+						threeAC.AddToTable(p[1],p[3],p[2])
+				else:
+					threeAC.AddToTable(p[1],'',p[2])
+
 	
 def p_unaryExpression(p):
 	'''unaryExpression : postfixExpression 
@@ -81,7 +85,7 @@ def p_unaryExpression(p):
 	elif len(p) == 3:
 		p[0] = AST.Expr("unPreOp",operator=p[1],operand1=p[2])
 		p[0].type = p[2].type
-		threeAC.AddToTable(p[2],'',p[1])
+		threeAC.AddToTable('',p[2],p[1])
 	else:
 		p[0] = AST.Expr("unaryop",operator=p[1],operand1=p[3])
 		p[0].type = p[2].type
@@ -102,6 +106,7 @@ def p_primaryExpression(p):
 def p_markid(p):
 	'''markid : identifier'''
 	p[0] = AST.Expr("id",operand1=p[1],constType=p[1].type)
+
 
 def p_markstr(p):
 	'''markstr : '''
@@ -373,9 +378,9 @@ def p_additiveExpression(p):
 			p[0].type = "float"
 		if(len(p)==4):
 			if p[2] == '+':
-				p[0]=threeAC.AddToTable(p[1],p[3],'+')
+				threeAC.AddToTable(p[1],p[3],'+')
 			elif p[2] == '-':
-				p[0]=threeAC.AddToTable(p[1],p[3],'-')			
+				threeAC.AddToTable(p[1],p[3],'-')			
 
 def p_multiplicativeExpression(p):
 	'''multiplicativeExpression : castExpression
@@ -401,9 +406,9 @@ def p_multiplicativeExpression(p):
 			p[0].type = "float"
 		if(len(p)==4):
 			if p[2] == '*':
-				p[0]=threeAC.AddToTable(p[1],p[3],'*')	
+				threeAC.AddToTable(p[1],p[3],'*')	
 			elif p[2] == '/':
-				p[0]=threeAC.AddToTable(p[1],p[3],'/')
+				threeAC.AddToTable(p[1],p[3],'/')
 			elif (p[1] == '(' and p[3] == ')'):
 				p[0]=p[2]
 
@@ -463,20 +468,30 @@ def p_caseList(p):
 	if len(p) == 6:
 		p[1].add_case(p[3], p[5])
 		p[0] = p[1]
+		threeAC.AddToTable('','','break')
 	else:
-        	p[0] = AST.Case()
+		p[0] = AST.Case()
 
 def p_default(p):
-	'''default : DEFAULT COLON statement	
+	'''default : DEFAULT defaultmark COLON statement enddefault	
 		| empty '''
 	if(len(p)==4):
 		p[0] = AST.CaseDefault(p[3])
 	else:
 		p[0]=None
 			
+def p_defaultmark(p):
+	'''defaultmark : empty '''
+	threeAC.AddToTable('','','Default')
+
+def p_enddefault(p):
+	'''enddefault : empty '''
+	threeAC.AddToTable('','','EndDefault')
+
 def p_constantExpression(p):
 	'''constantExpression : conditionalExpression '''
 	p[0]=p[1]
+	threeAC.AddToTable(p[1],'',"case")
 
 def p_expressionStatement(p):
 	'''expressionStatement : expression TERMINAL
@@ -543,7 +558,6 @@ def p_initDecList(p):
 	else:
 		p[1].add_identifier(p[4])
 		p[0] = p[1]
-	
 
 def p_markDec(p):
 	'''markDec : empty '''
@@ -566,6 +580,9 @@ def p_initDec(p):
 	if len(p)==4:
 		p[1].add_value(p[3])
 	p[0] = p[1]
+	if(p[1].value is not None):
+		threeAC.AddToTable(p[1].id,p[1].value.operand1,'=')
+
 
 def p_declarator(p):
 	'''declarator : pointerList directDec'''
@@ -645,7 +662,10 @@ def p_identifier(p):
 		else:
 			print("Variable undeclared or outOfScope!")
 			sys.exit()
-		
+	if(threeAC.switch_cond==1):
+		threeAC.AddToTable(p[1],'',"id")
+		threeAC.switch_cond=0
+	
 	#remember while adding to symbol table make changes in directDec for array type
 
 def p_decSpec(p):
@@ -669,39 +689,32 @@ def p_StorageClassSpec(p):
 			
 def p_selectionStatement(p):
 	'''selectionStatement : IF LPAREN ifmark expression RPAREN statement endifmark 
-			| IF LPAREN ifelsemark expression RPAREN statement ELSE elsemark statement endifelsemark
+			| IF LPAREN ifmark expression RPAREN statement endifmark ELSE elsemark statement
 			| SWITCH LPAREN switchmark expression RPAREN statement endswitchmark'''
 	if len(p)==11:
-		p[0] = AST.IfStmt(p[3], p[5], p[7])
+		p[0] = AST.IfStmt(p[4], p[6], p[10])
+		threeAC.AddToTable('','',"endelse")
 	elif len(p) == 8:
 		if (p[1] == "if"):
-			p[0] = AST.IfStmt(p[3], p[5])
+			p[0] = AST.IfStmt(p[4], p[6])
 		else:
-			p[0] = AST.SwitchStmt(p[3], p[5])
+			p[0] = AST.SwitchStmt(p[4], p[6])
 
 def p_ifmark(p):
 	'''ifmark : empty '''
 	threeAC.AddToTable('','',"if")
-
+		
 def p_endifmark(p):
 	'''endifmark : empty '''
 	threeAC.AddToTable('','',"endif")
-
-def p_ifelsemark(p):
-	'''ifelsemark : empty '''
-	print("test")
-	threeAC.AddToTable('','',"ifelse")
 
 def p_elsemark(p):
 	'''elsemark : empty '''
 	threeAC.AddToTable('','',"else")
 
-def p_endifelsemark(p):
-	'''endifelsemark : empty '''
-	threeAC.AddToTable('','',"endifelse")
-
 def p_switchmark(p):
 	'''switchmark : empty '''
+	threeAC.switch_cond=1
 	threeAC.AddToTable('','',"switch")
 
 def p_endswitchmark(p):
@@ -726,19 +739,49 @@ def p_jumpStatement(p):
 
 # Error rule for syntax errorscl
 def p_error(p):
-    if p is not None:
-       print("Syntax error in input\n error: near",p.value,"at line:",p.lineno)
-	
+	if p is not None:
+		print("Syntax error in input\n error: near",p.value,"at line:",p.lineno)
+		sys.exit()	
 
 # 	Build the parser
 parser = yacc.yacc()
 
-s=open('cpp_code.cpp','r').read()
+s=open('cpp_code2.cpp','r').read()
 result = parser.parse(s)
 if result is not None:
 	with open("AST.txt",'w') as f:
 		f.write(str(result))
 
 threeAC.ThreeAddressCode()
+
+print("_______________________")
+print()
+threeAC.printTriples()
+
+print()			
+print("_______________________")
+print()	
+print("OPTIMIZED CODE")
+print("_______________________")
+print()
+
+print()
+print("AFTER CONSTANT AND COPY PROPAGATION")
+print()
+
+threeAC.const_prop()
+
+
+print()
+print("AFTER CONSTANT FOLDING")
+print()
+
+threeAC.const_fold()
+
+print()
+print("AFTER DEAD CODE ELIMINATION")
+print()
+
+threeAC.dead_code()
 
 #main_table.print_table()
