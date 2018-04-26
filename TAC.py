@@ -1,6 +1,8 @@
 from collections import namedtuple
 import AST
 import copy
+from tabulate import tabulate
+from prettytable import PrettyTable
 
 class threeAC:
 	def __init__(self):
@@ -57,6 +59,23 @@ class threeAC:
 		# 	self.temp += 1
 		self.ind+=1
 
+	def printTriples(self):
+		heading=["S.No","Operand1","Operator","Operand2"]
+		triples= PrettyTable(heading)
+		i=1
+		for x in self.code:
+			if(isinstance(x.op1,int) or isinstance(x.op1,str)):
+				instr=[]
+				instr.append(i)
+				instr.append(x.op1)
+				instr.append(x.opr)
+				instr.append(x.op2)
+				triples.add_row(instr)
+				i+=1
+		print(triples)
+		# print(tabulate(triples,headers=heading,tablefmt="psql"))
+
+
 	def ThreeAddressCode(self):
 		# print("code")
 		# print(*self.code,sep='\n')
@@ -72,6 +91,7 @@ class threeAC:
 				# print("ifmain=",str(cnt))
 			elif(self.code[cnt].opr == "endif"):
 				self.if_count-=1
+				self.if_flag-=1
 				# print("endifmain=",str(cnt))
 				#print("("+str(self.step)+") "+ self.labels[self.lc-1] + ":")	
 			elif(self.code[cnt].opr == "else"):
@@ -84,11 +104,14 @@ class threeAC:
 		self.temp+=1
 		print("\n")
 
+
+
 	def ThreeAddressCode_switch(self,cnt):
 		switch_idx = cnt
 		cnt+=1
 		condition = self.code[cnt]
 		cnt+=1
+		self.switch_cond=1
 		while(1):
 			if(self.code[cnt].opr!="endswitch"):
 				if(self.code[cnt].opr=="case"):
@@ -113,8 +136,11 @@ class threeAC:
 							break
 						elif(self.code[cnt].opr=="EndDefault"):
 							break
-						else:	
+						else:
+							if(self.code[cnt].opr not in ['++','--']):	
+								print('\t',end='')
 							self.ThreeAddressCode_expr(cnt)
+							self.switch_cond=0
 						cnt+=1
 					cnt+=1
 			else:
@@ -132,7 +158,9 @@ class threeAC:
 		cnt+=1		
 		# print("elsefunc=",str(cnt))
 
-		while(cnt<(len(self.code)-self.endelse_idx-1)):		
+		while(cnt<(len(self.code)-self.endelse_idx-1)):
+			print('\t',end='')
+
 			# print("elsewhile=",str(cnt))
 			if(self.code[cnt].opr == "switch"):
 				cnt=self.ThreeAddressCode_switch(cnt)
@@ -149,6 +177,7 @@ class threeAC:
 		# print("iffunc=",str(cnt))
 		self.labels.append(self.make_newlabel())
 		self.if_count+=1
+		self.if_flag+=1
 		#print(list(reversed(self.code[:(len(self.code)-self.endif_idx-1)])))
 		prev_endif=self.endif_idx+1
 		if(self.endif_idx!=0):
@@ -173,14 +202,14 @@ class threeAC:
 		#print(condition)
 
 		if(self.if_count>1):
-			print('\t'*(self.if_count-1),end='')
+			print('\t'*(self.if_flag-1),end='')
 		self.step+=1
 		print("("+str(self.step)+") "+"<Evaluate " + condition+">")
 		self.step+=1
 		if(self.code[cnt-1].opr == "endif"):
 			self.lc+=1
 		if(self.if_count>1):
-			print('\t'*(self.if_count-1),end='')
+			print('\t'*(self.if_flag-1),end='')
 		print("("+str(self.step)+") "+"if_False " + condition + " goto " + self.labels[self.lc])
 		self.lc+=1
 		# print(self.lc)
@@ -207,7 +236,65 @@ class threeAC:
 		# 	self.lc-=1
 		return cnt
 
+	def ThreeAddressCode_Unary(self,cnt):
+
+		if(self.code[cnt].op2 == ''):	#i++ and i--
+			if(self.code[cnt].opr == '++'):	
+				self.step+=1
+				if(self.if_flag>0 or self.switch_cond == 1):
+					print('\t'*self.if_count,end='')
+				print("("+str(self.step)+") "+"t"+str(self.temp) +": = "+ str(self.code[cnt].op1) + " + 1")
+				self.step+=1
+				if(self.if_flag>0 or self.switch_cond == 1):
+					print('\t'*self.if_count,end='')
+				print("("+str(self.step)+") "+str(self.code[cnt].op1)+" = "+"t"+str(self.temp))
+				self.temp+=1
+			elif(self.code[cnt].opr == '--'):	
+				self.step+=1
+				if(self.if_flag>0 or self.switch_cond == 1):
+					print('\t'*self.if_count,end='')
+				print("("+str(self.step)+") "+"t"+str(self.temp) +": = "+ str(self.code[cnt].op1) + " - 1")
+				self.step+=1
+				if(self.if_flag>0 or self.switch_cond == 1):
+					print('\t'*self.if_count,end='')
+				print("("+str(self.step)+") "+str(self.code[cnt].op1)+" = "+"t"+str(self.temp))
+				self.temp+=1	
+		elif(self.code[cnt].op1 == ''):		#--i and ++i
+			if(self.code[cnt].opr == '++'):	
+				self.step+=1
+				if(self.if_flag>0 or self.switch_cond == 1):
+					print('\t'*self.if_count,end='')
+				print("("+str(self.step)+") "+"t"+str(self.temp) +": = "+ str(self.code[cnt].op2))
+				self.temp+=1	
+				self.step+=1
+				if(self.if_flag>0 or self.switch_cond == 1):
+					print('\t'*self.if_count,end='')
+				print("("+str(self.step)+") "+"t"+str(self.temp) +": = "+ str(self.code[cnt].op2) + " + 1")
+				self.step+=1	
+				if(self.if_flag>0 or self.switch_cond == 1):
+					print('\t'*self.if_count,end='')
+				print("("+str(self.step)+") "+str(self.code[cnt].op2)+" = "+"t"+str(self.temp))
+				self.temp+=1
+			elif(self.code[cnt].opr == '--'):	
+				self.step+=1
+				if(self.if_flag>0 or self.switch_cond == 1):
+					print('\t'*self.if_count,end='')
+				print("("+str(self.step)+") "+"t"+str(self.temp) +": = "+ str(self.code[cnt].op2))
+				self.temp+=1	
+				self.step+=1	
+				if(self.if_flag>0 or self.switch_cond == 1):
+					print('\t'*self.if_count,end='')
+				print("("+str(self.step)+") "+"t"+str(self.temp) +": = "+ str(self.code[cnt].op2) + " - 1")
+				self.step+=1	
+				if(self.if_flag>0 or self.switch_cond == 1):
+					print('\t'*self.if_count,end='')
+				print("("+str(self.step)+") "+str(self.code[cnt].op2)+" = "+"t"+str(self.temp))
+				self.temp+=1		
+		return		
+
+
 	def ThreeAddressCode_expr(self,cnt):
+		unary=0
 		# print("expr")
 		if(self.code[cnt].opr == "switch"):
 			cnt=self.ThreeAddressCode_switch(cnt)
@@ -233,46 +320,52 @@ class threeAC:
 				return cnt
 		# print("exprfunc=",str(cnt))
 		
-		if(self.if_count>0):
+		
+		if(self.code[cnt].opr in ['++','--']):
+			unary=1
+			self.ThreeAddressCode_Unary(cnt)
+		
+		if(self.if_flag>0):
 			print('\t'*self.if_count,end='')
 
-		if(self.code[cnt].opr != '='):			
-				self.step+=1
-				print("("+str(self.step)+") "+"t"+str(self.temp) +": = ",end='')
-				self.temp+=1
+		if(unary!=1):	
+			if(self.code[cnt].opr != '='):			
+					self.step+=1
+					print("("+str(self.step)+") "+"t"+str(self.temp) +": = ",end='')
+					self.temp+=1
 
 
-		if(str(self.code[cnt].op1).isalnum()):
-			if(self.code[cnt].opr == '='):
-				self.step+=1
-				print("("+str(self.step)+") "+self.code[cnt].op1,end='')
+			if(str(self.code[cnt].op1).isalnum()):
+				if(self.code[cnt].opr == '='):
+					self.step+=1
+					print("("+str(self.step)+") "+self.code[cnt].op1,end='')
+				else:
+					# if self.code[cnt].opr == '':
+					# 	print(self.code[cnt].op1)
+					# else:
+					print(self.code[cnt].op1,end='')
+			elif(isinstance(self.code[cnt].op1,AST.Expr)):
+				self.temp-=2
+				print("t"+str(self.temp-2),end='')
 			else:
-				# if self.code[cnt].opr == '':
-				# 	print(self.code[cnt].op1)
-				# else:
-				print(self.code[cnt].op1,end='')
-		elif(isinstance(self.code[cnt].op1,AST.Expr)):
-			self.temp-=1
-			print("t"+str(self.temp-2),end='')
-		else:
-			if(self.code[cnt].opr not in ['--','++']):
-				self.step+=1
-				print("("+str(self.step)+") "+"t"+str(self.temp),end='')
-				self.temp+=1
+				if(self.code[cnt].opr not in ['--','++']):
+					self.step+=1
+					print("("+str(self.step)+") "+"t"+str(self.temp),end='')
+					self.temp+=1
 
-		if(self.code[cnt].opr == '=' and self.code[cnt].op2 == ''):
-			self.temp-=1
-		print(self.code[cnt].opr,end='')
+			if(self.code[cnt].opr == '=' and self.code[cnt].op2 == ''):
+				self.temp-=1
+			print(self.code[cnt].opr,end='')
 
-		if(self.code[cnt].op2 is not None and str(self.code[cnt].op2).isalnum()):
-			print(self.code[cnt].op2,end='')
-		elif(isinstance(self.code[cnt].op2,AST.Expr)):
-			self.temp+=1
-			print("t"+str(self.temp-2),end='')
-		elif(self.code[cnt].op2 is not None):
-			if(self.code[cnt].opr not in ['--','++']):
-				print("t"+str(self.temp),end='')
-				self.temp+=1
+			if(self.code[cnt].op2 is not None and str(self.code[cnt].op2).isalnum()):
+				print(self.code[cnt].op2,end='')
+			elif(isinstance(self.code[cnt].op2,AST.Expr)):
+				self.temp+=2
+				print("t"+str(self.temp-2),end='')
+			elif(self.code[cnt].op2 is not None):
+				if(self.code[cnt].opr not in ['--','++']):
+					print("t"+str(self.temp),end='')
+					self.temp+=1
 		print("\n")
 		return 
 #------------------------------------------------------------------------------------------------------------------

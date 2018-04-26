@@ -781,4 +781,8 @@ print()
 
 threeAC.dead_code()
 
+print("_______________________")
+print()
+threeAC.printTriples()
+
 #main_table.print_table()
