@@ -62,12 +62,16 @@ def p_assignmentExpression(p):
 				#print("Datatype mismatch in ",str(p[1].operand1)," and ",str(p[3].operand1)," performing coercion!")
 				#mismatch has to mean int and float, hence coercion to float
 				p[0].type=p[1].type
-		if(p[2] == '='):
 			if(p[3] is not None):
 				if(p[3].expr_type == "constant" or p[3].expr_type == "id"):
-					threeAC.AddToTable(p[1],p[3],'=')
+					if(len(p[2])==2):
+						threeAC.AddToTable(p[1],p[3],p[2][0])
+						threeAC.AddToTable(p[1],'',p[2][1])
+					else:
+						threeAC.AddToTable(p[1],p[3],p[2])
 				else:
-					threeAC.AddToTable(p[1],'','=')
+					threeAC.AddToTable(p[1],'',p[2])
+
 	
 def p_unaryExpression(p):
 	'''unaryExpression : postfixExpression 
@@ -81,7 +85,7 @@ def p_unaryExpression(p):
 	elif len(p) == 3:
 		p[0] = AST.Expr("unPreOp",operator=p[1],operand1=p[2])
 		p[0].type = p[2].type
-		threeAC.AddToTable(p[2],'',p[1])
+		threeAC.AddToTable('',p[2],p[1])
 	else:
 		p[0] = AST.Expr("unaryop",operator=p[1],operand1=p[3])
 		p[0].type = p[2].type
@@ -742,7 +746,7 @@ def p_error(p):
 # 	Build the parser
 parser = yacc.yacc()
 
-s=open('cpp_code.cpp','r').read()
+s=open('cpp_code2.cpp','r').read()
 result = parser.parse(s)
 if result is not None:
 	with open("AST.txt",'w') as f:
@@ -751,23 +755,30 @@ if result is not None:
 threeAC.ThreeAddressCode()
 
 
-# print()			
-# print("_______________________")
-# print()	
-# print("OPTIMIZED CODE")
-# print("_______________________")
-# print()
+print()			
+print("_______________________")
+print()	
+print("OPTIMIZED CODE")
+print("_______________________")
+print()
 
-# print()
-# print("AFTER CONSTANT PROPAGATION")
-# print()
+print()
+print("AFTER CONSTANT AND COPY PROPAGATION")
+print()
 
-# threeAC.const_prop()
+threeAC.const_prop()
 
-# print()
-# print("AFTER CONSTANT FOLDING")
-# print()
 
-# threeAC.const_fold()
+print()
+print("AFTER CONSTANT FOLDING")
+print()
+
+threeAC.const_fold()
+
+print()
+print("AFTER DEAD CODE ELIMINATION")
+print()
+
+threeAC.dead_code()
 
 #main_table.print_table()

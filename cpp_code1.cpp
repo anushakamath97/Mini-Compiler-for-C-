@@ -18,41 +18,40 @@ int main()
 
 	
 	m=5;
-	dc=40;
+	
+	dc=40;   //dead code
+	
+	//w=z;
 	a = 20;
 	d = a + b;
+	
+	//y=w+a;
 	if(m==10.5)
 	{	
 		b=10;
 		a=5;
+		b=dc+1;
 		i=100;
-		//d = a+b; 			//a+b*i+10;
+		d = a*b; 			//a+b*i+10;
 		//a = b;
-		if(i==5){
-			number = 20;
-		}
-		if(number==20){	
-			a=b;
-			b=6;
-		}
-		a=10;
-	}
-	else
-	{	int z;
-		z=10;
-		z=z+1;
+		//if(i==5)
+		//	number = 20;
+		
 	}
 
 	m=a+b;
-   	/*switch(m)
+	/*else
+	{	int z;
+		--i;
+	}*/
+/*   	switch(number)
 	{
-		case 'A': { float q;a=10;m=3; break;}
-		case 4: { float w;b=20; break;}
-		default: a=a+1;
+		case 1: { float q; p[1]=20; break;}
 		case 2: { i++; break;	}
 		case 3: { x *= 100; break;	}
 		default : factorial = ((++i) - (2*number));
 	}
-    */
+*/    
 	return 0;
 }
+

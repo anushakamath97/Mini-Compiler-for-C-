@@ -5,9 +5,8 @@
 int main() 
 {
 	int number, i = 1, factorial = 1;
-	int m,w,z,y;
+	int m;
 
-	int dc;
 	const int a,b;
 	int d;
 	char **c,x;
@@ -18,7 +17,7 @@ int main()
 
 	
 	m=5;
-	dc=40;
+
 	a = 20;
 	d = a + b;
 	if(m==10.5)
@@ -26,33 +25,25 @@ int main()
 		b=10;
 		a=5;
 		i=100;
-		//d = a+b; 			//a+b*i+10;
-		//a = b;
-		if(i==5){
+		i++ + ++a;
+		d = a+b; 			//a+b*i+10;
+		a = b;
+		if(i==5)
 			number = 20;
-		}
-		if(number==20){	
-			a=b;
-			b=6;
-		}
-		a=10;
+		a=10;	
 	}
 	else
 	{	int z;
-		z=10;
-		z=z+1;
+		a = a+1;
 	}
-
-	m=a+b;
-   	/*switch(m)
+   	switch(number)
 	{
-		case 'A': { float q;a=10;m=3; break;}
-		case 4: { float w;b=20; break;}
-		default: a=a+1;
+		case 1: { float q; a=10;m=3; break;}
 		case 2: { i++; break;	}
 		case 3: { x *= 100; break;	}
 		default : factorial = ((++i) - (2*number));
 	}
-    */
+	m=a+b;
+    
 	return 0;
 }
