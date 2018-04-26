@@ -18,7 +18,8 @@ class threeAC:
 		self.if_count=0
 		self.else_count=0
 		self.switch_cond=0
-		
+		self.if_flag=0
+
 	def make_newlabel(self):
 		label = 'L_' + str(self.labelcount)
 		self.labelcount += 1
@@ -146,7 +147,6 @@ class threeAC:
 
 	def ThreeAddressCode_if(self,cnt):
 		# print("iffunc=",str(cnt))
-
 		self.labels.append(self.make_newlabel())
 		self.if_count+=1
 		#print(list(reversed(self.code[:(len(self.code)-self.endif_idx-1)])))
@@ -172,11 +172,15 @@ class threeAC:
 			condition = str(self.code[cnt+1].op1)
 		#print(condition)
 
+		if(self.if_count>1):
+			print('\t'*(self.if_count-1),end='')
 		self.step+=1
 		print("("+str(self.step)+") "+"<Evaluate " + condition+">")
 		self.step+=1
 		if(self.code[cnt-1].opr == "endif"):
 			self.lc+=1
+		if(self.if_count>1):
+			print('\t'*(self.if_count-1),end='')
 		print("("+str(self.step)+") "+"if_False " + condition + " goto " + self.labels[self.lc])
 		self.lc+=1
 		# print(self.lc)
@@ -217,6 +221,8 @@ class threeAC:
 		if(self.code[cnt].opr == "endif"):
 			if(self.if_count!=1):
 				self.if_count-=1
+
+			self.if_flag-=1
 			self.lc-=1
 			if(self.if_count == self.else_count):
 				self.lc-=1
@@ -227,6 +233,9 @@ class threeAC:
 				return cnt
 		# print("exprfunc=",str(cnt))
 		
+		if(self.if_count>0):
+			print('\t'*self.if_count,end='')
+
 		if(self.code[cnt].opr != '='):			
 				self.step+=1
 				print("("+str(self.step)+") "+"t"+str(self.temp) +": = ",end='')
